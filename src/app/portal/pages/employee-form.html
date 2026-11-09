@@ -1,0 +1,244 @@
+<div class="p-head">
+  <div>
+    <a class="back" routerLink="/portal/employees"><span aria-hidden="true">←</span> Employees</a>
+    <h1>{{ isNew() ? 'Add employee' : displayName() }}</h1>
+    @if (employee(); as e) {
+      <div class="badges">
+        @if (e.designationName) { <p-tag [value]="designationLabel(e)" severity="contrast" /> }
+        <p-tag [value]="e.userTypeName ?? roleLabels[e.role]" />
+        <p-tag [value]="e.empNumber" severity="secondary" />
+        @if (statusOf(e).label !== 'Active') { <p-tag [value]="statusOf(e).label" [severity]="statusOf(e).severity" /> }
+      </div>
+    }
+  </div>
+</div>
+
+@if (error()) { <p-message severity="error" styleClass="page-message">{{ error() }}</p-message> }
+
+@if (loading()) {
+  <p class="p-loading">Loading…</p>
+} @else {
+  @if (!canEdit()) {
+    <p-message severity="info" styleClass="page-message">Only an owner can change owner and admin accounts.</p-message>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section class="p-card">
+      <h2>Sign-in</h2>
+      <div class="p-grid">
+        <div class="pf">
+          <label for="f-user">User ID *</label>
+          <input pInputText id="f-user" formControlName="userId" autocomplete="off" autocapitalize="none" spellcheck="false"
+                 [invalid]="!!errorFor('userId')" />
+          @if (errorFor('userId'); as m) { <small class="error">{{ m }}</small> }
+          @else { <small class="hint">Used to sign in; not case sensitive.</small> }
+        </div>
+
+        @if (isNew()) {
+          <div class="pf">
+            <label for="f-pin">Temporary PIN *</label>
+            <input pInputText id="f-pin" formControlName="password" autocomplete="new-password" spellcheck="false"
+                   [invalid]="!!errorFor('password')" />
+            @if (errorFor('password'); as m) { <small class="error">{{ m }}</small> }
+            <ul class="rules" aria-label="PIN rule">
+              @for (c of pinChecks(); track c.label) {
+                <li [class.ok]="c.ok"><i class="pi" [class.pi-check]="c.ok" [class.pi-circle]="!c.ok" aria-hidden="true"></i>{{ c.label }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="pf">
+          <label for="f-brand">Brand *</label>
+          <p-select inputId="f-brand" formControlName="brandId" [options]="brandOptions()" optionLabel="label" optionValue="value"
+                    placeholder="Choose the brand first"
+                    [invalid]="!!brandError()" />
+          @if (brandError(); as m) { <small class="error">{{ m }}</small> }
+        </div>
+
+        <div class="pf">
+          <label for="f-role">Role (portal access) *</label>
+          <p-select inputId="f-role" formControlName="userTypeId" [options]="roleOptions()" optionLabel="label" optionValue="value"
+                    (onChange)="pickUserType($event.value)" [placeholder]="brandChosen() ? 'Choose the role' : 'Choose the brand first'" />
+          @if (isSelf()) { <small class="hint">You cannot change your own role.</small> }
+          @else if (!brandChosen()) { <small class="hint">Choose the brand first: the roles shown are those for all brands and that brand's own.</small> }
+          @else { <small class="hint">Roles for all brands and the chosen brand's own (Administration › Portal access roles).</small> }
+        </div>
+      </div>
+    </section>
+
+    <section class="p-card">
+      <h2>Personal details</h2>
+      <div class="p-grid">
+        <div class="pf">
+          <label for="f-name">Full name *</label>
+          <input pInputText id="f-name" formControlName="name" autocomplete="off" [invalid]="!!errorFor('name')" />
+          @if (errorFor('name'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf">
+          <label for="f-phone">Phone *</label>
+          <app-phone-input inputId="f-phone" label="phone" formControlName="phone" [required]="true" />
+          @if (submitted() && errorFor('phone'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf">
+          <label for="f-dob">Date of birth</label>
+          <p-datepicker inputId="f-dob" formControlName="dob" dateFormat="dd/mm/yy" [showIcon]="true" [maxDate]="today"
+                        placeholder="dd/mm/yyyy" [showButtonBar]="true" [invalid]="!!errorFor('dob')" appendTo="body" />
+          @if (errorFor('dob'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf">
+          <label for="f-blood">Blood group</label>
+          <p-select inputId="f-blood" formControlName="bloodGroup" [options]="bloodGroups" optionLabel="label" optionValue="value"
+                    placeholder="Not known" [showClear]="true" />
+        </div>
+        <div class="pf">
+          <label for="f-pmail">Personal email</label>
+          <input pInputText id="f-pmail" formControlName="personalEmail" type="email" [invalid]="!!errorFor('personalEmail')" />
+          @if (errorFor('personalEmail'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf">
+          <label for="f-emergency">Emergency contact number</label>
+          <app-phone-input inputId="f-emergency" label="emergency contact" formControlName="emergencyContact" />
+          @if (submitted() && errorFor('emergencyContact'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf span-all">
+          <label for="f-address">Address</label>
+          <textarea pTextarea id="f-address" formControlName="address" rows="3" [autoResize]="true"
+                    [invalid]="!!errorFor('address')"></textarea>
+          @if (errorFor('address'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+      </div>
+    </section>
+
+    <section class="p-card">
+      <h2>Work details</h2>
+      <div class="p-grid">
+        <div class="pf">
+          <label for="f-desig">Designation</label>
+          <p-select inputId="f-desig" formControlName="designationId" [options]="designationOptions()" optionLabel="label"
+                    optionValue="value" placeholder="Not set" [showClear]="true" />
+          <small class="hint">Job title and level, separate from Role.</small>
+        </div>
+        <div class="pf">
+          <label for="f-boss">Reports to</label>
+          <p-select inputId="f-boss" formControlName="reportsToId" [options]="reportsToOptions()" optionLabel="label"
+                    optionValue="value" placeholder="Nobody (top of the line)" [showClear]="true" [filter]="true"
+                    filterPlaceholder="Search people" />
+          <small class="muted">People of the chosen brand, and group-level people.</small>
+        </div>
+        <div class="pf">
+          <label for="f-approver">Approver</label>
+          <p-select inputId="f-approver" formControlName="approverId" [options]="approverOptions()" optionLabel="label"
+                    optionValue="value" placeholder="The person they report to" [showClear]="true" [filter]="true"
+                    filterPlaceholder="Search people" />
+          <small class="muted">Approves their attendance and work log before it counts.</small>
+        </div>
+        @if (canEdit()) {
+          <div class="pf check-field">
+            <span class="pf-label">Auto approve</span>
+            <label class="auto-approve" for="f-auto">
+              <p-checkbox inputId="f-auto" formControlName="autoApproveReports" [binary]="true" />
+              Approve leave, attendance and tasks of this person's people automatically
+            </label>
+          </div>
+          <div class="pf">
+            <label for="f-doclimit">Document uploads per month</label>
+            <p-inputnumber inputId="f-doclimit" formControlName="documentUploadLimit" [min]="0" [max]="1000" [useGrouping]="false"
+                           placeholder="Company default" />
+            @if (errorFor('documentUploadLimit'); as m) { <small class="error">{{ m }}</small> }
+            @else { <small class="muted">Leave empty for the company default. 0 stops uploads.</small> }
+          </div>
+        }
+        <div class="pf">
+          <label for="f-empno">Employee number</label>
+          <input pInputText id="f-empno" formControlName="empNumber" placeholder="Automatic, e.g. DW0001"
+                 [invalid]="!!errorFor('empNumber')" />
+          @if (errorFor('empNumber'); as m) { <small class="error">{{ m }}</small> }
+          @else if (isNew()) { <small class="hint">Leave empty to create the next number for the brand.</small> }
+        </div>
+        <div class="pf">
+          <label for="f-joined">Joined date *</label>
+          <p-datepicker inputId="f-joined" formControlName="joinedDate" dateFormat="dd/mm/yy" [showIcon]="true"
+                        placeholder="dd/mm/yyyy" [invalid]="!!errorFor('joinedDate')" appendTo="body" />
+          @if (errorFor('joinedDate'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf">
+          <label for="f-cmail">Company email</label>
+          <input pInputText id="f-cmail" formControlName="companyEmail" type="email" placeholder="name@example.com"
+                 [invalid]="!!errorFor('companyEmail')" />
+          @if (errorFor('companyEmail'); as m) { <small class="error">{{ m }}</small> }
+        </div>
+        <div class="pf span-all">
+          <span class="pf-label">Photo</span>
+          @if (employee(); as e) {
+            @if (canEdit()) {
+              <app-photo-editor [employee]="e" [size]="72" [progress]="status()?.percent ?? null" (changed)="employee.set($event)" />
+            } @else {
+              <app-avatar [name]="e.name" [employeeId]="e.id" [photoVersion]="e.photoUpdatedAt" [photoPath]="e.photoPath" [size]="72" />
+            }
+          } @else {
+            <small class="hint">Add a photo after saving; the employee can also add their own from My profile.</small>
+          }
+        </div>
+        @if (!isNew()) {
+          <div class="pf span-all">
+            <label class="check" for="f-active">
+              <p-checkbox inputId="f-active" formControlName="active" [binary]="true" /> Account active (can sign in)
+            </label>
+          </div>
+        }
+      </div>
+    </section>
+
+    @if (canEdit()) {
+      <div class="p-actions">
+        <p-button type="submit" [label]="saving() ? 'Saving…' : isNew() ? 'Add employee' : 'Save changes'" [loading]="saving()" />
+        <p-button label="Cancel" [outlined]="true" severity="secondary" routerLink="/portal/employees" />
+        @if (canDeleteThis()) { <p-button type="button" label="Delete employee" icon="pi pi-trash" [text]="true" severity="danger" (onClick)="deleteThis()" /> }
+      </div>
+    }
+  </form>
+
+  @if (employee(); as e) {
+    <section class="p-card">
+      <h2>Reporting line</h2>
+      <app-reporting-line [employeeId]="e.id" />
+    </section>
+
+    <app-bank-details-card [employeeId]="e.id" />
+
+    @if (canEdit()) {
+      <app-employee-documents [employeeId]="e.id" (changed)="loadStatus(e.id)" />
+    }
+  }
+
+  @if (!isNew() && canEdit() && !isSelf()) {
+    <section class="p-card">
+      <h2>Reset PIN</h2>
+      @if (employee()?.locked) {
+        <p-message severity="error" styleClass="page-message">
+          <span><b>Sign-in locked</b> after 5 wrong PINs in a row{{ employee()?.lockedAt ? ' on ' + (employee()!.lockedAt | date: 'd MMM y, h:mm a') : '' }}.
+            It stays locked until you set a temporary PIN below; they then choose their own PIN at the next sign-in.</span>
+        </p-message>
+      }
+      <p class="p-intro">Last sign-in: <b>{{ lastSignIn() ?? 'never' }}</b>
+        @if (employee()?.lastLoginAt) { · Session {{ employee()?.sessionExpired ? 'expired' : 'running' }} }</p>
+      <p class="p-intro">Use this when someone forgets their PIN or is locked out. It also signs them out everywhere.</p>
+      @if (resetError()) { <p-message severity="error" styleClass="page-message">{{ resetError() }}</p-message> }
+      <div class="reset">
+        <div class="pf">
+          <label for="f-reset">New temporary PIN</label>
+          <input pInputText id="f-reset" [formControl]="resetPin" autocomplete="new-password" spellcheck="false"
+                 [invalid]="showResetError()" />
+          <ul class="rules" aria-label="PIN rule">
+            @for (c of resetChecks(); track c.label) {
+              <li [class.ok]="c.ok"><i class="pi" [class.pi-check]="c.ok" [class.pi-circle]="!c.ok" aria-hidden="true"></i>{{ c.label }}</li>
+            }
+          </ul>
+        </div>
+        <p-button severity="contrast" size="small" [label]="resetBusy() ? 'Saving…' : 'Set temporary PIN'" [loading]="resetBusy()"
+                  (onClick)="doResetPin()" />
+      </div>
+    </section>
+  }
+}

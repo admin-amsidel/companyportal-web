@@ -1,0 +1,402 @@
+<div class="p-head">
+  <div>
+    <h1>{{ t.title }}</h1>
+    <p>{{ t.intro }}</p>
+  </div>
+</div>
+
+@if (error()) { <p-message severity="error" styleClass="page-message">{{ error() }}</p-message> }
+@if (setup(); as s) {
+  @if (mailBlocked()) {
+    <p-message severity="warn" styleClass="page-message">
+      Mail is not set up on the server yet, so nothing can be sent. Set up the brand's Brevo account in its Email config, or
+      the backend needs the mail service key (MAIL_PASSWORD) for {{ s.from || 'the sending account' }}.
+    </p-message>
+  }
+}
+
+<div class="mail-grid">
+  <section class="p-card compose">
+    <h2>Message</h2>
+    <div class="pf">
+      <div class="lbl-row">
+        <label for="m-subject">Subject *</label>
+        <p-button label="Insert name" icon="pi pi-user-plus" [text]="true" size="small" (onClick)="insertName(subjectEl, 'subject')" />
+      </div>
+      <input #subjectEl pInputText id="m-subject" maxlength="200" autocomplete="off" [placeholder]="t.placeholder"
+             [ngModel]="subject()" (ngModelChange)="subject.set($event)" />
+    </div>
+
+    @if (byEmail()) {
+      <div class="pf copies">
+        @if (alwaysCc()) {
+          <div class="copies__row copies__fixed">
+            <span class="lbl">CC</span>
+            <span class="fixed-cc" title="Copied on every mail; it cannot be taken off">
+              <i class="pi pi-lock" aria-hidden="true"></i> {{ alwaysCc() }} <small>always copied</small>
+            </span>
+          </div>
+        }
+        @if (!showCopies()) {
+          <p-button label="Add CC / BCC" icon="pi pi-users" [text]="true" size="small" styleClass="add-copies" (onClick)="showCopies.set(true)" />
+        } @else {
+          <div class="copies__row">
+            <label for="m-cc">CC</label>
+            <input pInputText id="m-cc" maxlength="1000" autocomplete="off" inputmode="email" placeholder="e.g. hr@example.com"
+                   [ngModel]="ccText()" (ngModelChange)="ccText.set($event)" />
+          </div>
+          <div class="copies__row">
+            <label for="m-bcc">BCC</label>
+            <input pInputText id="m-bcc" maxlength="1000" autocomplete="off" inputmode="email" placeholder="Hidden copies"
+                   [ngModel]="bccText()" (ngModelChange)="bccText.set($event)" />
+          </div>
+          @if (badAddresses().length) {
+            <small class="err">Not an email address: {{ badAddresses().join(', ') }}</small>
+          }
+          <small class="hint">Optional; separate addresses with commas. Every person's mail is copied to them, so they get one copy
+            per person. BCC addresses are hidden from everyone.</small>
+        }
+      </div>
+    }
+
+    <div class="pf">
+      <span class="pf-label" id="m-greet-lbl">Greeting</span>
+      <p-selectbutton [options]="greetingOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                      ariaLabelledBy="m-greet-lbl" [ngModel]="greetingMode()" (ngModelChange)="greetingMode.set($event)" />
+      <div class="dear">
+        <span>Dear</span>
+        @if (greetingMode() === 'NAME') {
+          <span class="dear__auto"><i class="pi pi-user" aria-hidden="true"></i> {{ t.theirName }}</span>
+        } @else {
+          <input pInputText id="m-greet" maxlength="100" aria-label="Words after Dear" placeholder="All"
+                 [ngModel]="greetingText()" (ngModelChange)="greetingText.set($event)" />
+        }
+        <span>,</span>
+      </div>
+    </div>
+
+    <div class="pf">
+      <div class="lbl-row">
+        <label for="m-body">Message *</label>
+        <span class="lbl-actions">
+          @if (byEmail() && canPicture) {
+            <p-button label="Add picture" icon="pi pi-image" [text]="true" size="small" (onClick)="picIn.click()" />
+            <input #picIn type="file" hidden [accept]="pictureAccept" (change)="addPicture(picIn, bodyEl)" />
+          }
+          <p-button label="Insert name" icon="pi pi-user-plus" [text]="true" size="small" (onClick)="insertName(bodyEl, 'body')" />
+        </span>
+      </div>
+      <div class="fmt" role="toolbar" aria-label="Text style">
+        <button type="button" class="fmt__btn fmt__btn--b" title="Bold the selected words (**words**)" aria-label="Bold"
+                (mousedown)="$event.preventDefault()" (click)="bold(bodyEl)">B</button>
+        <button type="button" class="fmt__btn" title="Make this line a heading (# at the start)" aria-label="Heading"
+                (mousedown)="$event.preventDefault()" (click)="heading(bodyEl)"><span class="fmt__h">H</span> Heading</button>
+        <span class="fmt__tip">Select words, then <b>B</b> for bold; <b>Heading</b> for the line the cursor is on.</span>
+      </div>
+      <textarea #bodyEl pTextarea id="m-body" rows="9" maxlength="20000" [autoResize]="true"
+                [placeholder]="t.bodyHint"
+                [ngModel]="body()" (ngModelChange)="body.set($event)"></textarea>
+      <small class="hint">{{ '{name}' }} becomes each person's name. **words** show in bold and a line starting with # is a
+        heading. Your signature goes at the end.
+        @if (pictures().length) { Each picture shows where its [[image n]] is in the text. }</small>
+
+      @if (pictures().length) {
+        <ul class="pics" aria-label="Pictures in the message">
+          @for (p of pictures(); track p.key; let i = $index) {
+            <li class="pic" [class.failed]="p.state === 'failed'">
+              <img [src]="p.thumb" alt="" />
+              <div class="pic__body">
+                <span class="pic__name">
+                  <code>[[image {{ i + 1 }}]]</code> {{ p.name }}
+                  <small class="muted">
+                    @switch (p.state) {
+                      @case ('uploading') { · <i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Uploading… }
+                      @case ('failed') { · <span class="bad">{{ p.error }}</span> }
+                      @default { · {{ size(p.size) }} }
+                    }
+                  </small>
+                </span>
+                <input pInputText maxlength="300" [attr.aria-label]="'Description under picture ' + (i + 1)"
+                       placeholder="Description shown under the picture (optional)"
+                       [ngModel]="p.caption" (ngModelChange)="setCaption(p, $event)" />
+                <div class="pic__layout">
+                  <p-selectbutton [options]="alignOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                                  [ariaLabel]="'Position of picture ' + (i + 1)" size="small"
+                                  [ngModel]="p.align" (ngModelChange)="setLayout(p, { align: $event })">
+                    <ng-template #item let-o><i [class]="o.icon" [attr.title]="o.label" aria-hidden="true"></i><span class="sr-only">{{ o.label }}</span></ng-template>
+                  </p-selectbutton>
+                  <p-selectbutton [options]="sizeOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                                  [ariaLabel]="'Size of picture ' + (i + 1)" size="small"
+                                  [ngModel]="p.width" (ngModelChange)="setLayout(p, { width: $event })" />
+                </div>
+              </div>
+              <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="secondary" size="small"
+                        [ariaLabel]="'Remove picture ' + (i + 1)" (onClick)="removePicture(p)" />
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="pf sig">
+      <div class="lbl-row">
+        <label for="m-sig">Signature</label>
+        <span class="lbl-actions">
+          @if (signature() !== signatureStandard()) {
+            <p-button label="Use standard" icon="pi pi-replay" [text]="true" size="small" (onClick)="signature.set(signatureStandard())" />
+          }
+          <p-button [label]="signatureSaved() === signature() ? 'Saved as mine' : 'Save as my signature'"
+                    [icon]="signatureSaved() === signature() ? 'pi pi-check' : 'pi pi-save'" [text]="true" size="small"
+                    [disabled]="signatureSaved() === signature()" [loading]="signatureBusy()" (onClick)="saveSignature()" />
+        </span>
+      </div>
+      <textarea pTextarea id="m-sig" rows="3" maxlength="1000" [autoResize]="true" placeholder="Regards,&#10;**Your name**&#10;Designation, brand, phone"
+                [ngModel]="signature()" (ngModelChange)="signature.set($event)"></textarea>
+      <small class="hint">Goes at the end of every mail and WhatsApp message. **words** are bold. Saved signatures come back next time.</small>
+    </div>
+
+    @if (byEmail() && canAttach) {
+      <div class="pf">
+        <div class="lbl-row">
+          <span class="lbl">Attachments</span>
+          <p-button label="Attach files" icon="pi pi-paperclip" [text]="true" size="small" (onClick)="fileIn.click()" />
+          <input #fileIn type="file" multiple hidden [accept]="attachAccept" (change)="addAttachments(fileIn)" />
+        </div>
+        @if (attachments().length) {
+          <ul class="files" aria-label="Attachments">
+            @for (a of attachments(); track a.key) {
+              <li class="file" [class.failed]="a.state === 'failed'">
+                <i [class]="fileIcon(a.name)" aria-hidden="true"></i>
+                <span class="file__name">{{ a.name }}</span>
+                <small class="muted">
+                  @switch (a.state) {
+                    @case ('uploading') { <i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Uploading… }
+                    @case ('failed') { <span class="bad">{{ a.error }}</span> }
+                    @default { {{ size(a.size) }} }
+                  }
+                </small>
+                <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="secondary" size="small"
+                          [ariaLabel]="'Remove ' + a.name" (onClick)="removeAttachment(a)" />
+              </li>
+            }
+          </ul>
+        }
+        <small class="hint">Pictures, PDF or Word (.doc, .docx): up to 10 MB each and 14 MB in all with the
+          pictures{{ totalSize() ? ' (' + size(totalSize()) + ' now)' : '' }}. Sent by email only, not on WhatsApp.</small>
+      </div>
+    }
+  </section>
+
+  <section class="p-card who">
+    <h2>Send to</h2>
+    @if (notAllowed) { <p-message severity="warn" styleClass="dlg-msg">{{ notAllowed }}</p-message> }
+    @if (channelOptions.length) {
+    <div class="pf by">
+      <span class="pf-label" id="m-by-lbl">Send by</span>
+      <p-selectbutton [options]="channelOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                      ariaLabelledBy="m-by-lbl" [ngModel]="channel()" (ngModelChange)="channel.set($event)">
+        <ng-template #item let-o><i [class]="o.icon" aria-hidden="true"></i><span>{{ o.label }}</span></ng-template>
+      </p-selectbutton>
+    </div>
+    }
+    @if (modeOptions.length > 1) {
+      <p-selectbutton [options]="modeOptions" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabel="Send to"
+                      [ngModel]="mode()" (ngModelChange)="mode.set($event)" />
+    } @else if (modeOptions.length === 1) {
+      <p class="only-mode"><i [class]="mode() === 'PICK' ? 'pi pi-user-plus' : 'pi pi-users'" aria-hidden="true"></i> {{ modeOptions[0].label }}</p>
+    }
+    @if (mode() !== 'PICK') {
+      @if (brands().length > 1) {
+        <div class="pf mt">
+          <label for="m-brand">Brand</label>
+          <p-select inputId="m-brand" [options]="brandOptions()" optionLabel="label" optionValue="value"
+                    [ngModel]="brandId()" (ngModelChange)="brandId.set($event)" />
+        </div>
+      }
+    } @else {
+      @if (trade) {
+        <div class="pf mt">
+          <span class="pf-label" id="m-kind-lbl">Customer or supplier</span>
+          <p-selectbutton [options]="partyKindOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                          ariaLabelledBy="m-kind-lbl" [ngModel]="partyKind()" (ngModelChange)="partyKind.set($event)" />
+        </div>
+      }
+      <div class="pf mt">
+        <label for="m-people">{{ trade ? (partyKind() === 'CUSTOMER' ? 'Customers' : 'Suppliers') : t.people }}</label>
+        <p-multiselect inputId="m-people" [options]="peopleOptions()" optionLabel="label" optionValue="value" optionDisabled="disabled" [filter]="true"
+                       [filterPlaceHolder]="t.search" [placeholder]="trade ? (partyKind() === 'CUSTOMER' ? 'Choose customers' : 'Choose suppliers') : t.pick" display="chip"
+                       [maxSelectedLabels]="4" [selectedItemsLabel]="t.chosen" appendTo="body" [loading]="loading()"
+                       [ngModel]="picked()" (ngModelChange)="pick($event)" />
+        @if (pickUsage().length) {
+          <small class="hint" [class.warn]="pickAtLimit()">In one send:
+            @for (u of pickUsage(); track u.label; let last = $last) { {{ u.label }} {{ u.count }} of {{ u.limit }}{{ last ? '' : ' · ' }} }
+          </small>
+        }
+      </div>
+    }
+    <p class="count">
+      @if (loading()) { {{ t.loading }} }
+      @else {
+        @if (byEmail()) {
+          <span class="line"><i class="pi pi-envelope" aria-hidden="true"></i>
+            <b>{{ recipients().length - noEmail() }}</b> by email
+            @if (noEmail()) { <span class="warn">· {{ noEmail() }} {{ t.noEmail }}</span> }
+          </span>
+          @for (u of dayUsage(); track u.label) {
+            <span class="line day" [class.warn]="u.left !== null && u.mails > u.left"><i class="pi pi-calendar" aria-hidden="true"></i>
+              {{ u.label }} today: {{ u.sent }}{{ u.daily !== null ? ' of ' + u.daily : '' }} sent{{ u.left !== null ? ', ' + u.left + ' left' : '' }}</span>
+          }
+        }
+        @if (byWhatsApp()) {
+          <span class="line"><i class="pi pi-whatsapp" aria-hidden="true"></i>
+            <b>{{ recipients().length - noPhone() }}</b> on WhatsApp
+            @if (noPhone()) { <span class="warn">· {{ noPhone() }} without a usable phone number</span> }
+          </span>
+        }
+      }
+    </p>
+
+    <div class="preview" aria-label="Preview">
+      <div class="preview__bar"><span>Preview for {{ preview().name }}</span></div>
+      <div class="preview__subj">{{ preview().subject }}</div>
+      @if (byEmail() && previewLook(); as l) { <div class="preview__head">{{ l.header }}</div> }
+      @if (byEmail() && (cc().length || bcc().length || previewCc())) {
+        <div class="preview__cc">
+          @if (cc().length || previewCc()) { <span>CC: {{ (previewCc() ? [previewCc()] : []).concat(cc()).join(', ') }}</span> }
+          @if (bcc().length) { <span>BCC: {{ bcc().join(', ') }}</span> }
+        </div>
+      }
+      <div class="preview__body">
+        <p>Dear {{ preview().greeting }},</p>
+        @for (part of previewParts(); track $index) {
+          @if (part.kind === 'text') {
+            <div class="txt" [innerHTML]="rich(part.text)"></div>
+          } @else if (byEmail()) {
+            <figure class="pv-pic" [class]="'pv-pic pv-pic--' + part.pic.align.toLowerCase() + ' pv-pic--' + part.pic.width.toLowerCase()">
+              <img [src]="part.pic.thumb" [alt]="part.pic.caption || 'Picture'" />
+              @if (part.pic.caption.trim()) { <figcaption>{{ part.pic.caption }}</figcaption> }
+            </figure>
+          }
+        }
+        <div class="pv-sig" [innerHTML]="rich(preview().signature)"></div>
+      </div>
+      @if (byEmail() && previewLook(); as l) { <div class="preview__foot">{{ l.footer }}</div> }
+      @if (byEmail() && attachments().length) {
+        <div class="preview__files">
+          @for (a of attachments(); track a.key) {
+            <span><i [class]="fileIcon(a.name)" aria-hidden="true"></i> {{ a.name }}</span>
+          }
+        </div>
+      }
+    </div>
+    @if (byWhatsApp()) {
+      <p class="wa-hint">
+        <i class="pi pi-info-circle" aria-hidden="true"></i>
+        WhatsApp goes from your own WhatsApp: after you press the button, each person's message opens in WhatsApp
+        ready to send, one tap each. The subject and headings come in bold. WhatsApp links carry text only, so pictures
+        and attachments go by email.
+      </p>
+    }
+
+    @if (formError()) { <p-message severity="error" styleClass="dlg-msg">{{ formError() }}</p-message> }
+    <div class="p-actions">
+      <p-button [label]="sendLabel()" [icon]="channel() === 'WHATSAPP' ? 'pi pi-whatsapp' : 'pi pi-send'"
+                [disabled]="running() || mailBlocked() || (byEmail() && uploading()) || !!notAllowed" (onClick)="send()" />
+      @if (previewFrom(); as f) { @if (byEmail()) { <small class="muted">From {{ f.name }} &lt;{{ f.email }}&gt;</small> } }
+    </div>
+  </section>
+</div>
+
+@if (rows().length) {
+  <section class="p-card delivery">
+    <div class="del-head">
+      <h2>Delivery</h2>
+      <div class="head-actions">
+        @if (waCounts().ready) {
+          <p-button [label]="'Open next on WhatsApp (' + waCounts().ready + ' left)'" icon="pi pi-whatsapp" size="small"
+                    styleClass="wa-btn" (onClick)="openNextWhatsApp()" />
+        }
+        @if (running()) {
+          <p-button label="Stop" icon="pi pi-stop-circle" severity="secondary" [outlined]="true" size="small" (onClick)="stop()" />
+        } @else {
+          @if (retryable()) {
+            <p-button [label]="'Send ' + retryable() + ' failed again'" icon="pi pi-refresh" size="small" (onClick)="retryFailed()" />
+          }
+          <p-button label="Clear" [text]="true" size="small" (onClick)="clear()" />
+        }
+      </div>
+    </div>
+    @if (sentVia() !== 'WHATSAPP') {
+      <div class="del-sum">
+        <i class="pi pi-envelope" aria-hidden="true"></i>
+        <p-progressbar [value]="progress()" [showValue]="false" styleClass="bar" />
+        <span><b class="ok">{{ counts().sent }}</b> sent · <b class="bad">{{ counts().failed }}</b> failed ·
+          {{ counts().total - counts().done }} to go</span>
+      </div>
+    }
+    @if (sentVia() !== 'EMAIL') {
+      <div class="del-sum">
+        <i class="pi pi-whatsapp wa" aria-hidden="true"></i>
+        <p-progressbar [value]="waCounts().total ? (waCounts().opened * 100) / waCounts().total : 0" [showValue]="false" styleClass="bar wa" />
+        <span><b>{{ waCounts().opened }}</b> of {{ waCounts().total }} opened in WhatsApp
+          @if (waCounts().nophone) { · <b class="bad">{{ waCounts().nophone }}</b> without a phone }</span>
+      </div>
+    }
+    @if (sentVia() !== 'WHATSAPP') {
+      <p-selectbutton [options]="showOptions()" optionLabel="label" optionValue="value" [allowEmpty]="false" styleClass="show"
+                      [ngModel]="show()" (ngModelChange)="show.set($event)" />
+    }
+
+    <p-table appExcel="Email delivery" [value]="shownRows()" dataKey="id" styleClass="p-stack" [tableStyle]="{ 'min-width': '720px' }"
+             [paginator]="shownRows().length > 25" [rows]="25">
+      <ng-template #header>
+        <tr>
+          <th>{{ t.who }}</th>
+          @if (sentVia() !== 'WHATSAPP') { <th>{{ t.emailCol }}</th><th>Email status</th><th>Details</th> }
+          @if (sentVia() !== 'EMAIL') { <th>WhatsApp</th> }
+        </tr>
+      </ng-template>
+      <ng-template #body let-r>
+        <tr>
+          <td [attr.data-label]="t.who" class="stack-full">
+            <span class="person">
+              <app-avatar [name]="r.name" [employeeId]="r.kind === 'EMPLOYEE' ? r.personId : null" [photoVersion]="r.photoUpdatedAt"
+                          [photoPath]="r.photoPath" [size]="30" />
+              <span><b>{{ r.name }}</b><small class="muted">{{ r.kind === 'EMPLOYEE' ? '' : (r.kind === 'CUSTOMER' ? 'Customer · ' : 'Supplier · ') }}{{ r.empNumber }}</small></span>
+            </span>
+          </td>
+          @if (sentVia() !== 'WHATSAPP') {
+            <td [attr.data-label]="t.emailCol">{{ r.email ?? '—' }}</td>
+            <td data-label="Email status">
+              <p-tag [value]="tag(r).value" [severity]="tag(r).severity" [icon]="r.status === 'sending' ? 'pi pi-spin pi-spinner' : ''" />
+            </td>
+            <td data-label="Details" class="stack-full" [class.bad]="r.status === 'failed'">
+              {{ r.status === 'sent' && r.at ? 'Sent ' + (r.at | date: 'shortTime') : r.note }}
+            </td>
+          }
+          @if (sentVia() !== 'EMAIL') {
+            <td data-label="WhatsApp" class="wa-cell">
+              @if (r.waLink) {
+                <a class="wa-link" [class.done]="r.waState === 'opened'" [href]="r.waLink" target="_blank" rel="noopener"
+                   [attr.aria-label]="'Open WhatsApp message to ' + r.name" (click)="openedWhatsApp(r)">
+                  <i [class]="r.waState === 'opened' ? 'pi pi-check' : 'pi pi-whatsapp'" aria-hidden="true"></i>
+                  {{ r.waState === 'opened' ? 'Opened · open again' : 'Open in WhatsApp' }}
+                </a>
+                <small class="muted block">+{{ r.wa }}</small>
+              } @else {
+                <span class="bad">No usable phone number</span>
+              }
+            </td>
+          }
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr><td colspan="5" class="p-empty">Nothing here.</td></tr>
+      </ng-template>
+    </p-table>
+    <p class="note">
+      This list is not saved. It clears when you leave the page; leaving while mails are sending stops the rest.
+      @if (sentVia() !== 'EMAIL') { "Opened" means the message was opened in WhatsApp; check there that you pressed send. }
+    </p>
+  </section>
+}

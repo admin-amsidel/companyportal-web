@@ -1,0 +1,68 @@
+<div class="p-head">
+  <div>
+    <h1>Leave settings</h1>
+    <p>The types of leave, each brand's leave plans (dates, days, carry forward), and each brand's holidays.</p>
+  </div>
+</div>
+
+<app-leave-plan-alerts [link]="false" />
+
+<section class="p-card">
+  <h2>Types of leave</h2>
+  @if (typesError()) { <p-message severity="error" styleClass="page-message">{{ typesError() }}</p-message> }
+  <p-table appExcel="Types of leave" [value]="drafts()" [tableStyle]="{ 'min-width': '920px' }" styleClass="types p-stack">
+    <ng-template #header>
+      <tr>
+        <th>Code</th><th>Name</th><th>Allowance</th><th>Default days</th>
+        <th>Half day</th><th>Listed dates only</th><th>In use</th><th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-row>
+      <tr [class.is-off]="!row.active">
+        <td data-label="Code"><input pInputText class="code" [(ngModel)]="row.code" (ngModelChange)="touch(row)" maxlength="10" aria-label="Code" /></td>
+        <td data-label="Name"><input pInputText [(ngModel)]="row.name" (ngModelChange)="touch(row)" maxlength="100" aria-label="Name" /></td>
+        <td data-label="Allowance">
+          <p-select [options]="allocationOptions" optionLabel="label" optionValue="value" [(ngModel)]="row.allocation"
+                    (ngModelChange)="touch(row)" ariaLabel="Allowance" appendTo="body" />
+        </td>
+        <td data-label="Default days">
+          @if (row.allocation === 'ANNUAL') {
+            <p-inputnumber [(ngModel)]="row.annualQuota" (ngModelChange)="touch(row)" [min]="0" [max]="365"
+                           inputStyleClass="num" ariaLabel="Default days" />
+          } @else {
+            <span class="muted">{{ row.allocation === 'GRANTED' ? 'Granted' : 'No limit' }}</span>
+          }
+        </td>
+        <td data-label="Half day"><p-checkbox [binary]="true" [(ngModel)]="row.halfDayAllowed" (ngModelChange)="touch(row)" [disabled]="row.restrictedDatesOnly"
+                        ariaLabel="Half day allowed" /></td>
+        <td data-label="Listed dates only"><p-checkbox [binary]="true" [(ngModel)]="row.restrictedDatesOnly" (ngModelChange)="touch(row)" ariaLabel="Only on listed dates" /></td>
+        <td data-label="In use"><p-checkbox [binary]="true" [(ngModel)]="row.active" (ngModelChange)="touch(row)" ariaLabel="In use" /></td>
+        <td class="act stack-end">
+          @if (row.dirty) {
+            <p-button label="Save" size="small" [loading]="row.saving" (onClick)="save(row)" />
+          }
+          @if (row.error) { <small class="err block">{{ row.error }}</small> }
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+  <div class="p-actions">
+    <p-button label="Add leave type" icon="pi pi-plus" [outlined]="true" size="small" (onClick)="addType()" />
+  </div>
+  <ul class="legend">
+    <li><b>Days in the plan</b>: everyone gets the days the brand's leave plan gives (Casual, Sick, Earned, Restricted Holiday). "Default days" only starts off a new plan.</li>
+    <li><b>Granted per person</b>: no yearly days; managers and admins grant them under Approvals (Comp-off, Paternity).</li>
+    <li><b>No limit</b>: no balance, only counted (Leave Without Pay).</li>
+    <li><b>Listed dates only</b>: can be taken only on the restricted holiday dates below, one day at a time.</li>
+  </ul>
+</section>
+
+<app-leave-plans />
+
+<app-holiday-editor kind="office" title="Office holidays"
+                    intro="Days a brand's office is closed (Christmas, New Year, Onam…). Nobody applies for them: leave across them does not count them, and the work log expects no hours."
+                    placeholder="e.g. Christmas" />
+
+<app-holiday-editor kind="restricted" title="Restricted / optional holidays"
+                    intro="Optional festival days. People pick from this list, up to their Restricted Holiday allowance."
+                    placeholder="e.g. Holi" />

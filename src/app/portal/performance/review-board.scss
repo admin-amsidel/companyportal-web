@@ -1,0 +1,268 @@
+/*
+ * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
+ * Designed and developed by AMSIDEL Technologies.
+ */
+/* One person's review: totals, goals, skills, achievements */
+
+:host { display: block; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.lbl { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+:host ::ng-deep .p-progressbar.bar { height: 8px; }
+:host ::ng-deep .p-progressbar.bar.mini { height: 5px; margin-top: 10px; }
+:host ::ng-deep .dlg-msg, :host ::ng-deep .inline-msg { margin: 0; }
+:host ::ng-deep .dlg-msg { margin-top: 12px; }
+
+/* totals */
+.sum { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(0, 1fr)); gap: 18px; align-items: center; }
+.sum__who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sum__who > span { display: grid; line-height: 1.3; min-width: 0; }
+.sum__who small { color: var(--muted); font-size: .78rem; }
+.sum__box { display: grid; gap: 4px; align-content: start; }
+.sum__box small { color: var(--muted); font-size: .76rem; }
+.big { font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.big.warn { color: #b45309; }
+
+:host ::ng-deep .tabs { margin-top: 20px; }
+:host ::ng-deep .tabs .p-tabpanels { background: var(--bg); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; padding: 18px; }
+:host ::ng-deep .tabs .p-tab { gap: 8px; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.bar h3, .bar h4 { margin: 0; }
+.ach-note { margin: 0 0 14px; font-size: .88rem; }
+.bar.sub { margin: 20px 0 10px; min-height: 36px; padding-top: 12px; border-top: 1px solid var(--line); }
+.bar.sub h4 { font-size: .95rem; }
+
+/* goals */
+.goal { border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; background: #fff; }
+.goal__head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.goal__head h3 { margin: 0 0 2px; font-size: 1.05rem; }
+.goal__head .muted { font-size: .82rem; }
+.goal__right { display: flex; align-items: center; gap: 2px; }
+.goal__desc { margin: 8px 0 0; font-size: .9rem; white-space: pre-line; }
+.goal__progress { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin: 14px 0 6px; }
+.tasks { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.tasks li, .tasks.one { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(120px, 1fr) 48px; gap: 14px; align-items: center; padding: 8px 10px; background: var(--soft); border-radius: 6px; }
+.tasks.one { grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr); }
+.t-title { display: grid; line-height: 1.3; min-width: 0; }
+.t-title small { font-size: .76rem; }
+.pct { text-align: right; font-variant-numeric: tabular-nums; font-size: .88rem; }
+:host ::ng-deep .slider { width: 100%; }
+.ratings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.rating { display: grid; gap: 6px; align-content: start; }
+.rating textarea { width: 100%; }
+.rating p-button { justify-self: start; }
+.acts, .given { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cmt { margin: 0; font-size: .88rem; font-style: italic; white-space: pre-line; }
+
+/* intro and skills */
+.intro { display: grid; gap: 8px; margin-bottom: 20px; }
+.intro h3 { margin: 0; }
+.intro textarea { width: 100%; }
+/* autoResize measures 0 when the textarea starts in a hidden tab; keep at least its rows' height */
+textarea[rows="2"] { min-height: 3.9rem; }
+textarea[rows="3"] { min-height: 5.3rem; }
+textarea[rows="4"] { min-height: 6.7rem; }
+.intro p-button { justify-self: start; }
+.intro__text { margin: 0; white-space: pre-line; }
+.skills { margin-bottom: 18px; }
+.skill { display: grid; grid-template-columns: minmax(0, 1.2fr) auto auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.s-name { display: grid; line-height: 1.3; min-width: 0; }
+.s-name small { font-size: .74rem; }
+.s-col { display: grid; gap: 2px; }
+.s-col small { font-size: .68rem; }
+.s-note { font-size: .84rem; font-style: italic; min-width: 0; }
+.s-act { display: flex; gap: 2px; justify-content: flex-end; }
+
+/* achievements */
+.achievements { display: grid; gap: 10px; }
+.ach { display: flex; gap: 14px; align-items: flex-start; padding: 12px 14px; border: 1px solid #ecd9a8; background: #fdf8ec; border-radius: 10px; }
+.ach > i { font-size: 1.4rem; color: #c9930c; margin-top: 2px; }
+.ach.self { border-color: var(--line); background: #fff; }
+.ach.self > i { color: var(--muted); }
+.ach__main { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.ach__main small { font-size: .8rem; }
+.ach__main p { margin: 4px 0 0; font-size: .9rem; white-space: pre-line; }
+
+/* dialogs */
+.gform { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.gform.one { grid-template-columns: 1fr; }
+.gform .span { grid-column: 1 / -1; }
+.gform textarea { width: 100%; }
+.trow { display: grid; grid-template-columns: minmax(0, 1fr) 96px 130px 130px auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+:host ::ng-deep .trow .w input { width: 100%; }
+:host ::ng-deep .trow .d, :host ::ng-deep .trow .d input { width: 100%; }
+
+@media (max-width: 1100px) {
+  .sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sum__who { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .ratings, .gform { grid-template-columns: 1fr; }
+  .tasks li { grid-template-columns: 1fr 48px; }
+  .tasks li .t-title { grid-column: 1 / -1; }
+  .skill { grid-template-columns: 1fr 1fr; }
+  .skill .s-name, .skill .s-note { grid-column: 1 / -1; }
+  .trow { grid-template-columns: 1fr 90px; }
+  .trow p-datepicker { grid-column: span 1; }
+}
+
+/* minimise / expand goals and their sub-tasks */
+.bar__acts { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+.goal__head { align-items: center; }
+.fold { flex: none; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.fold:hover { background: var(--soft); color: var(--ink); }
+.goal__titles { flex: 1; min-width: 0; cursor: pointer; }
+.goal--min { padding-bottom: 12px; }
+.tasks-head { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 2px; padding: 4px 6px; border: 0; background: none;
+  font: inherit; font-weight: 600; font-size: .88rem; color: var(--ink); cursor: pointer; border-radius: 6px; }
+.tasks-head:hover { background: var(--soft); }
+
+/* sales & marketing goals */
+.goal--sales { border-left: 4px solid var(--brass); }
+.sales-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 2px 0 10px; font-size: .9rem; }
+.sales-sum small { flex-basis: 100%; }
+.sales-sum .over { color: #1f7a45; }
+.tasks--sales li { grid-template-columns: minmax(0, 1.3fr) minmax(120px, 1fr) 110px auto; }
+.t-amt { display: grid; justify-items: end; line-height: 1.2; }
+.t-entries { grid-column: 1 / -1; }
+.entries { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.entries li { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 10px;
+  background: #fff; border: 1px solid var(--line); border-radius: 6px; font-size: .85rem; }
+.e-amt { display: grid; line-height: 1.25; }
+.e-main { display: grid; gap: 3px; min-width: 0; }
+.e-main small { color: var(--ink); overflow-wrap: anywhere; }
+.invoices { display: flex; flex-wrap: wrap; gap: 4px; }
+.inv { padding: 1px 7px; border-radius: 999px; background: var(--accent-softer); color: var(--brand-deep); font-size: .75rem; font-weight: 600; }
+.e-acts { display: flex; }
+.no-entries { margin: 4px 0 0; }
+.warn { color: #b45309; }
+.trow.trow--sales { grid-template-columns: minmax(0, 1fr) 160px 130px 130px auto; }
+@media (max-width: 760px) {
+  .tasks--sales li { grid-template-columns: 1fr auto; }
+  .tasks--sales li .t-title { grid-column: 1 / -1; }
+  .entries li { grid-template-columns: 1fr auto; }
+  .entries li .e-main { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 760px) { .trow.trow--sales { grid-template-columns: 1fr 140px; } }
+
+/* sales-order goals: target and achieved, the month-wise report and the orders */
+.goal--orders { border-left: 4px solid #1f7a45; }
+.hl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 6px 0 14px; }
+.hl__box { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--accent-softer); border: 1px solid var(--line); }
+.hl__box span { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.hl__box b { font-size: 1.25rem; }
+.hl__box small { color: var(--muted); font-size: .78rem; }
+.hl__box--ok { background: #e8f6ee; border-color: #b7e2c6; }
+.hl__box--ok b { color: #1f7a45; }
+.mr { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.mr__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+:host ::ng-deep .mr__pick { min-width: 210px; }
+.mr__table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.mr__table th { text-align: left; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.mr__table td { padding: 5px 6px; border-bottom: 1px solid var(--line); }
+.mr__table tbody tr { cursor: default; }
+.mr__table tbody tr.click { cursor: pointer; }
+.mr__table tbody tr:hover { background: var(--soft); }
+.mr__table tbody tr.on { background: var(--accent-soft); font-weight: 600; }
+.mr__table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.orders-note { margin: 16px 0 0; display: flex; gap: 6px; align-items: center; }
+@media (max-width: 760px) {
+  .hl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+/* month-wise report: + / - opens a month's orders and their invoices */
+.mr__month { white-space: nowrap; }
+.mr__fold { width: 22px; height: 22px; margin-right: 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  color: var(--ink); cursor: pointer; display: inline-grid; place-items: center; vertical-align: middle; padding: 0; }
+.mr__fold i { font-size: .7rem; }
+.mr__fold:hover:not(:disabled) { background: var(--soft); }
+.mr__fold:disabled { opacity: .35; cursor: default; }
+.mr__table tbody tr.mr__sub { cursor: default; background: var(--accent-softer); }
+.mr__table tbody tr.mr__sub:hover { background: var(--accent-softer); }
+.mr__sub > td { padding: 6px 6px 10px 36px; }
+.mr__inner { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.mr__inner th { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.mr__inner td { padding: 5px 6px; border-bottom: 1px dashed var(--line); vertical-align: top; }
+.mr__inner tr:last-child td { border-bottom: 0; }
+.mr__inner .num { text-align: right; }
+.mr__inner a { color: var(--brass-dark, #5235d6); text-decoration: none; }
+.mr__inner .block { display: block; font-size: .74rem; }
+
+.no-orders { margin: 4px 0 0; }
+.th-note { display: block; font-size: .6rem; letter-spacing: .06em; text-transform: none; font-weight: 500; }
+.mr__table td.muted, .mr__inner td.muted { color: var(--muted); }
+
+/* ---- phones ---- */
+@media (max-width: 760px) {
+  /* a goal's heading: the title across the full width, its type, weight and buttons on the line under it */
+  .goal { padding: 14px 12px; }
+  .goal__head { flex-wrap: wrap; align-items: flex-start; gap: 4px 8px; }
+  .goal__titles { flex: 1 1 calc(100% - 40px); }
+  .goal__right { flex: 1 1 100%; flex-wrap: wrap; gap: 4px; padding-left: 38px; }
+  /* the month-wise report as stacked cards: each month, then (opened) each order, label above value */
+  .mr { padding: 10px; }
+  .mr__head { flex-wrap: wrap; }
+  :host ::ng-deep .mr__pick { min-width: 0; width: 100%; }
+  .mr__table, .mr__table > tbody, .mr__inner, .mr__inner > tbody { display: block; width: 100%; }
+  .mr__table > thead, .mr__inner > thead { display: none; }
+  .mr__table > tbody > tr:not(.mr__sub) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 4px;
+    border-bottom: 1px solid var(--line); }
+  .mr__table > tbody > tr > td { border: 0; padding: 0; text-align: left; }
+  .mr__table td.mr__month { grid-column: 1 / -1; font-weight: 600; font-size: .95rem; }
+  .mr__table td[data-label]::before, .mr__inner td[data-label]::before { content: attr(data-label); display: block; font-size: .64rem;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 1px; }
+  .mr__table > tbody > tr.mr__sub { display: block; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
+  .mr__sub > td { display: block; padding: 0; }
+  .mr__inner > tbody { display: grid; gap: 8px; }
+  .mr__inner tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px; background: #fff;
+    border: 1px solid var(--line); border-radius: 10px; }
+  .mr__inner td { border: 0; padding: 0; text-align: left; }
+  .mr__inner td.wide { grid-column: 1 / -1; }
+  .mr__inner .num { text-align: left; }
+  .hl__box b { font-size: 1.05rem; }
+}
+
+/* ---- task worklog goals: each work log task with its logs, green once completed ---- */
+.goal--worklog { border-left: 4px solid #d97706; }
+.wl-sum { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 4px 0 10px; font-size: .9rem; color: var(--muted); }
+.wl-sum i { color: var(--brass-dark); margin-right: 2px; }
+.wl-sum b { color: var(--ink); }
+.wl { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wl__item { border: 1px solid var(--line); border-left: 4px solid #cbd5e1; border-radius: 10px; background: #fff; }
+.wl__item--done { border-left-color: #1f8f4e; background: #f0faf3; border-color: #bfe5cc; }
+.wl__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px 12px; padding: 8px 12px 8px 6px; }
+.wl__title { display: grid; min-width: 0; cursor: pointer; line-height: 1.3; }
+.wl__title b { overflow-wrap: anywhere; }
+.wl__code { display: inline-block; font-size: .78rem; font-weight: 700; color: var(--brass-dark); background: var(--accent-soft);
+  border-radius: 6px; padding: 1px 6px; margin-right: 4px; }
+.wl__hrs { font-variant-numeric: tabular-nums; }
+.wl__state { display: grid; justify-items: end; gap: 2px; }
+.wl__state small { font-size: .72rem; }
+.wl__body { padding: 4px 14px 14px 44px; display: grid; gap: 12px; }
+.wl__logs { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.wl__logs th { text-align: left; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.wl__logs td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.wl__logs td:first-child { white-space: nowrap; }
+.wl__logs .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wl__logs tfoot td { border-bottom: 0; font-weight: 600; }
+.wl__rate { display: grid; gap: 6px; justify-items: start; }
+.wl__rate textarea { width: 100%; }
+.wl__rate .given { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.wl__rate .acts { display: flex; gap: 6px; }
+@media (max-width: 760px) {
+  .wl__row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .wl__state { grid-column: 2 / -1; justify-items: start; grid-auto-flow: column; align-items: center; gap: 8px; }
+  .wl__body { padding: 4px 12px 12px; }
+  .wl__logs thead { display: none; }
+  .wl__logs tr { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .wl__logs td { border: 0; padding: 0; }
+  .wl__logs td:nth-child(3) { grid-column: 1 / -1; }
+  .wl__logs tfoot tr { border: 0; }
+}
+
+/* ---- Manual Sales worklog goals: the approved entries ---- */
+.ms-lines { overflow-x: auto; margin-bottom: 10px; }
+.ms-lines table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.ms-lines th, .ms-lines td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.ms-lines th { font-weight: 600; color: var(--muted); font-size: .76rem; }
+.ms-lines .num { text-align: right; font-variant-numeric: tabular-nums; }

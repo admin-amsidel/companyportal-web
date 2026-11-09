@@ -1,0 +1,995 @@
+/*
+ * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
+ * Designed and developed by AMSIDEL Technologies.
+ */
+import { DatePipe } from '@angular/common';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { ButtonModule } from 'primeng/button';
+import { DatePickerModule } from 'primeng/datepicker';
+import { DialogModule } from 'primeng/dialog';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
+import { SelectModule } from 'primeng/select';
+import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { TooltipModule } from 'primeng/tooltip';
+import { catchError, forkJoin, Observable, of, switchMap } from 'rxjs';
+import { CURRENCIES, currencyLocale, formatMoney } from '../payroll/payroll.models';
+import { apiProblem, fromIsoDate, toIsoDate } from '../portal.models';
+import { AuthService } from '../auth.service';
+import { CustomerForm } from '../customers/customer-form';
+import { PaymentPanel } from './payment-panel';
+import { TradeBrand } from './trade-brand';
+import {
+  Customer, DOC_STATUS, DocKind, DocStatus, Item, money, payLabel, ProjectRow, qty, SalesBody, SalesDoc, workOut, DOC_KINDS, docLink, docStatus, SalesRow,
+} from './trade.models';
+import { saveFile, TradeService, PAPER_SIZES, PaperSize, savedPaper, savePaper } from './trade.service';
+import { phoneSearchText } from '../phone-input';
+import { HistoryList } from './history-list';
+import { printPdf } from '../../shared/print-pdf';
+import { parseItemLabel } from './item-label';
+import { QrScanner } from './qr-scanner';
+
+interface Line {
+  key: number;
+  itemId: number | null;
+  name: string;
+  size: string;
+  description: string;
+  unit: string;
+  hsnCode: string;
+  quantity: number | null;
+  rate: number | null;
+  /** The supplier price of one, as saved (null = the item's current price). */
+  unitCost: number | null;
+}
+
+const GST_RATES = [0, 5, 12, 18, 28].map((r) => ({ label: r + '%', value: r }));
+const DEFAULT_TERMS = 'Prices include delivery within the city. 50% advance with the order, the balance on installation.';
+
+/**
+ * One quotation or invoice: the customer, the items (each priced at the showroom price to start, with a warning
+ * below the minimum price and the stock on hand), discount, other charges and GST, worked out as the server does.
+ * A quotation is sent as a PDF and made into a sales order or an invoice; a sales order (the customer's confirmed
+ * order, items removed or changed) is confirmed, which sets its project to Confirmed, then made into the invoice; an
+ * invoice is issued (numbered, stock out), paid and, if needed, cancelled. Issued and closed bills are read-only.
+ */
+@Component({
+  selector: 'app-sales-editor',
+  imports: [
+    HistoryList, FormsModule, DatePipe, RouterLink, CustomerForm, PaymentPanel, ButtonModule, DatePickerModule, DialogModule, InputNumberModule, QrScanner,
+    InputTextModule, MessageModule, SelectModule, TagModule, TextareaModule, ToggleSwitchModule, TooltipModule,
+  ],
+  template: `
+    <div class="p-head">
+      <div>
+        <a class="back" [routerLink]="listLink()">← {{ names().many }}</a>
+        <h1>{{ title() }}
+          @if (doc(); as d) {
+            <span class="tags">
+              <span class="tag-wrap"><p-tag [value]="statusLabel(d).label" [severity]="statusLabel(d).severity" /></span>
+              @if (pay(); as p) { <span class="tag-wrap"><p-tag [value]="p.label" [severity]="p.severity" /></span> }
+            </span>
+          }
+        </h1>
+        @if (doc(); as d) {
+          <p>{{ d.company.name }} · prepared by <b>{{ d.createdByName ?? '—' }}</b>{{ d.createdByDesignation ? ', ' + d.createdByDesignation : '' }}
+            on {{ d.createdAt | date: 'd MMM y' }}
+            @if (d.issuedAt) { · {{ d.kind === 'SALES_ORDER' ? 'confirmed' : 'issued' }} {{ d.issuedAt | date: 'd MMM y, h:mm a' }} by <b>{{ d.issuedByName }}</b> }
+            @if (d.updatedByName && d.updatedAt) { · last changed by {{ d.updatedByName }}, {{ d.updatedAt | date: 'd MMM y, h:mm a' }} }
+            @if (d.projectId) { · project <a [routerLink]="'/portal/customers/projects/' + d.projectId">{{ d.projectCode }} {{ d.projectName }}</a> }
+            @if (d.quotationId) { · from {{ kindName(d.sourceKind).toLowerCase() }} <a [routerLink]="link(d.sourceKind, d.quotationId)">{{ d.quotationNumber }}</a> }
+            @if (d.invoiceId) { · {{ kindName(d.madeKind).toLowerCase() }} <a [routerLink]="link(d.madeKind, d.invoiceId)">{{ d.invoiceNumber }}</a> }
+          </p>
+        } @else {
+          <p>Prepared by <b>{{ me()?.name }}</b>{{ me()?.designationName ? ', ' + me()?.designationName : '' }}{{ brandName() ? ' · ' + brandName() : '' }}.
+            {{ invoice() ? 'A draft invoice can be changed and take advance payments; issuing it numbers it and takes the items out of stock.'
+            : order() ? 'The customer’s confirmed order. Confirming it fixes it and sets the project to Confirmed; then make the invoice.'
+            : 'Prices offered to a customer. Download the PDF to send it.' }}</p>
+        }
+      </div>
+      <div class="head-actions">
+        @if (doc(); as d) {
+          <p-select [options]="papers" optionLabel="label" optionValue="value" size="small" ariaLabel="Paper size" styleClass="paper"
+                    pTooltip="Paper for the PDF and printing (remembered on this device)" tooltipPosition="bottom"
+                    [ngModel]="paper()" (ngModelChange)="setPaper($event)" />
+          <p-button label="PDF" icon="pi pi-file-pdf" [outlined]="true" size="small" [loading]="pdfBusy()" (onClick)="pdf()" />
+          <p-button label="Print" icon="pi pi-print" [outlined]="true" size="small" [loading]="printBusy()" (onClick)="pdf(true)" />
+          @if (d.kind === 'QUOTATION') {
+            @if (d.status === 'DRAFT') { <p-button label="Mark as sent" icon="pi pi-send" [outlined]="true" size="small" (onClick)="setStatus('SENT')" /> }
+            @if (d.status === 'DRAFT' || d.status === 'SENT') {
+              <p-button label="Rejected" icon="pi pi-times" [outlined]="true" severity="secondary" size="small" (onClick)="setStatus('REJECTED')" />
+            }
+            @if (d.status === 'REJECTED') { <p-button label="Open again" icon="pi pi-undo" [outlined]="true" size="small" (onClick)="setStatus('DRAFT')" /> }
+            @if (!d.invoiceId && d.status !== 'REJECTED' && canOrder()) {
+              <p-button label="Make sales order" icon="pi pi-check-square" [outlined]="true" size="small" (onClick)="makeOrder()" />
+            }
+            @if (!d.invoiceId && d.status !== 'REJECTED' && canInvoice()) {
+              <p-button label="Make invoice" icon="pi pi-receipt" size="small" (onClick)="makeInvoice()" />
+            }
+          } @else if (d.kind === 'SALES_ORDER') {
+            @if (d.status === 'DRAFT') { <p-button label="Confirm order" icon="pi pi-check-circle" severity="success" size="small" (onClick)="issue()" /> }
+            @if (d.status === 'ISSUED' && !d.invoiceId) {
+              <p-button label="Cancel order" icon="pi pi-ban" [outlined]="true" severity="danger" size="small" (onClick)="cancelOpen.set(true)" />
+              @if (canInvoice()) { <p-button label="Make invoice" icon="pi pi-receipt" size="small" (onClick)="makeInvoice()" /> }
+            }
+          } @else {
+            @if (d.status === 'DRAFT') { <p-button label="Issue invoice" icon="pi pi-check-circle" severity="success" size="small" (onClick)="issue()" /> }
+            @if (d.status === 'ISSUED') { <p-button label="Cancel invoice" icon="pi pi-ban" [outlined]="true" severity="danger" size="small" (onClick)="cancelOpen.set(true)" /> }
+          }
+        }
+      </div>
+    </div>
+    @if (error()) { <p-message severity="error" styleClass="page-message">{{ error() }}</p-message> }
+    @if (doc()?.status === 'CANCELLED') {
+      <p-message severity="error" styleClass="page-message">Cancelled on {{ doc()!.cancelledAt | date: 'd MMM y' }}: {{ doc()!.cancelReason }}. Its items went back to stock.</p-message>
+    }
+
+    @if (ready()) {
+      <div class="layout">
+        <div class="main">
+          <section class="p-card">
+            <h2>Customer</h2>
+            <div class="cust">
+              @if (isNew() && brand.many()) {
+                <div class="pf">
+                  <label for="se-brand">Brand *</label>
+                  <p-select inputId="se-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
+                            [ngModel]="brandId()" (ngModelChange)="pickBrand($event)" />
+                  <small class="hint">Items and customers of this brand are listed.</small>
+                </div>
+              }
+              <div class="pf grow">
+                <label for="se-cust">Customer *</label>
+                <div class="with-btn">
+                  <p-select inputId="se-cust" [options]="customerOptions()" optionLabel="label" optionValue="value" [filter]="true"
+                            filterBy="label,phone" placeholder="Search name or phone" [disabled]="!editable() || !brandId()"
+                            [ngModel]="customerId()" (ngModelChange)="customerId.set($event); projectId.set(null); dirty.set(true)" (onFilter)="lastSearch.set($event.filter)" />
+                  @if (editable()) {
+                    <p-button icon="pi pi-user-plus" [outlined]="true" ariaLabel="New customer" pTooltip="New customer" [disabled]="!brandId()" (onClick)="customerOpen.set(true)" />
+                  }
+                </div>
+                @if (customer(); as c) {
+                  <small class="hint">{{ c.code }} · {{ c.phone }}{{ c.gstNumber ? ' · GSTIN ' + c.gstNumber : '' }}{{ c.address ? ' · ' + c.address : '' }}</small>
+                }
+              </div>
+              <div class="pf">
+                <label for="se-date">{{ invoice() ? 'Invoice date' : order() ? 'Order date' : 'Date' }} *</label>
+                <p-datepicker inputId="se-date" dateFormat="dd/mm/yy" [showIcon]="true" [disabled]="!editable()" [ngModel]="docDate()" (ngModelChange)="docDate.set($event); dirty.set(true)" />
+              </div>
+              @if (quote()) {
+                <div class="pf">
+                  <label for="se-valid">Valid until</label>
+                  <p-datepicker inputId="se-valid" dateFormat="dd/mm/yy" [showIcon]="true" [disabled]="!editable()" [minDate]="docDate() ?? undefined"
+                                [ngModel]="validUntil()" (ngModelChange)="validUntil.set($event); dirty.set(true)" />
+                </div>
+              }
+              <div class="pf grow">
+                <label for="se-proj">Project <span class="opt">(optional)</span></label>
+                <p-select inputId="se-proj" [options]="projectOptions()" optionLabel="label" optionValue="value" [filter]="true" [showClear]="true"
+                          [placeholder]="customerId() ? (projectOptions().length ? 'Not part of a project' : 'No open projects for this customer') : 'Choose the customer first'"
+                          [disabled]="!editable() || !customerId()" [ngModel]="projectId()" (ngModelChange)="projectId.set($event); dirty.set(true)" />
+                @if (projectId()) {
+                  <small class="hint"><a [routerLink]="'/portal/customers/projects/' + projectId()">Open the project</a> · its tasks, other bills and payments</small>
+                }
+              </div>
+            </div>
+          </section>
+
+          <section class="p-card">
+            <div class="sec-head">
+              <h2>Items</h2>
+              @if (editable()) {
+                <div class="acts">
+                  <p-button label="Scan QR" icon="pi pi-qrcode" size="small" [outlined]="true" [disabled]="!brandId()"
+                            pTooltip="Scan item QR labels: each scan adds the item, the same item again adds one to its quantity" (onClick)="openScan()" />
+                  <p-button label="Add item" icon="pi pi-plus" size="small" [disabled]="!brandId()" (onClick)="addLine(false)" />
+                  <p-button label="Add other line" icon="pi pi-plus" size="small" [outlined]="true" pTooltip="Installation, transport, labour…" (onClick)="addLine(true)" />
+                </div>
+              }
+            </div>
+            @if (editable()) {
+              <!-- copy the items of another bill into this one (not saved until Save) -->
+              <div class="copy-from">
+                <span class="copy-from__lbl"><i class="pi pi-copy" aria-hidden="true"></i> Copy items from</span>
+                <p-select [options]="copyKinds" optionLabel="label" optionValue="value" placeholder="Quotation, sales order or invoice" size="small"
+                          ariaLabel="Copy from: kind of bill" appendTo="body" [disabled]="!brandId()" [ngModel]="copyKind()" (ngModelChange)="pickCopyKind($event)"
+                          styleClass="copy-from__kind" />
+                <p-select [options]="copyOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" size="small"
+                          [placeholder]="copyKind() ? (copyLoading() ? 'Loading…' : 'Choose the bill number') : 'Choose the kind first'"
+                          ariaLabel="Copy from: bill" appendTo="body" [disabled]="!copyKind() || copyLoading()" [ngModel]="null"
+                          (ngModelChange)="copyFrom($event)" styleClass="copy-from__bill" emptyMessage="No bills of this kind"
+                          emptyFilterMessage="No bill matches" />
+                <small class="muted">Its items are added below, not saved yet: change quantities, add or remove lines, then save.</small>
+              </div>
+            }
+            <div class="lines">
+              @for (l of lines(); track l.key; let i = $index) {
+                <div class="line" [class.free]="!l.itemId && freeKeys().has(l.key)">
+                  <span class="no">{{ i + 1 }}</span>
+                  <div class="line__main">
+                    @if (freeKeys().has(l.key) && !l.itemId) {
+                      <input pInputText [attr.aria-label]="'Line ' + (i + 1) + ' name'" maxlength="200" placeholder="e.g. Installation" [disabled]="!editable()"
+                             [ngModel]="l.name" (ngModelChange)="patch(l.key, { name: $event })" />
+                    } @else {
+                      <p-select [options]="itemOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label,code" appendTo="body"
+                                placeholder="Choose the item" [ariaLabel]="'Line ' + (i + 1) + ' item'" [disabled]="!editable()" styleClass="item-pick"
+                                [ngModel]="l.itemId" (ngModelChange)="pickItem(l.key, $event)" />
+                    }
+                    <div class="line__sub">
+                      <input pInputText class="size" [attr.aria-label]="'Line ' + (i + 1) + ' size'" maxlength="50" [placeholder]="sizeHint(l)"
+                             [disabled]="!editable()" [ngModel]="l.size" (ngModelChange)="patch(l.key, { size: $event })" />
+                      <input pInputText class="desc" [attr.aria-label]="'Line ' + (i + 1) + ' description'" maxlength="500" placeholder="Description (colour, glass, hardware…)"
+                             [disabled]="!editable()" [ngModel]="l.description" (ngModelChange)="patch(l.key, { description: $event })" />
+                    </div>
+                    @if (lineNote(l); as n) { <small class="note" [class.warn]="n.warn">{{ n.text }}</small> }
+                  </div>
+                  <div class="line__nums">
+                    <div class="pf"><label [for]="'q' + l.key">Qty</label>
+                      <p-inputnumber [inputId]="'q' + l.key" [min]="0" [maxFractionDigits]="2" [disabled]="!editable()" [ngModel]="l.quantity" (ngModelChange)="patch(l.key, { quantity: $event })" /></div>
+                    <div class="pf"><label [for]="'u' + l.key">Unit</label>
+                      <input pInputText [id]="'u' + l.key" maxlength="20" [disabled]="!editable()" [ngModel]="l.unit" (ngModelChange)="patch(l.key, { unit: $event })" /></div>
+                    <div class="pf"><label [for]="'r' + l.key">Rate</label>
+                      <p-inputnumber [inputId]="'r' + l.key" mode="currency" [currency]="cur()" [locale]="curLocale()" [min]="0" [disabled]="!editable()" [ngModel]="l.rate" (ngModelChange)="patch(l.key, { rate: $event })" /></div>
+                    <div class="amt"><span>Amount</span><b>{{ money(amount(l)) }}</b></div>
+                  </div>
+                  @if (editable()) {
+                    <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" size="small" [ariaLabel]="'Remove line ' + (i + 1)" (onClick)="removeLine(l.key)" />
+                  }
+                </div>
+              } @empty { <p class="p-empty">Add the items being {{ invoice() ? 'sold' : order() ? 'ordered' : 'quoted' }}.</p> }
+            </div>
+          </section>
+
+          <section class="p-card">
+            <h2>Notes on the {{ names().one.toLowerCase() }}</h2>
+            <div class="notes">
+              <div class="pf"><label for="se-rem">Remarks</label>
+                <textarea pTextarea id="se-rem" rows="2" maxlength="1000" [autoResize]="true" [disabled]="!editable()" placeholder="Shown on the PDF"
+                          [ngModel]="remarks()" (ngModelChange)="remarks.set($event); dirty.set(true)"></textarea></div>
+              <div class="pf"><label for="se-terms">Terms &amp; conditions</label>
+                <textarea pTextarea id="se-terms" rows="3" maxlength="2000" [autoResize]="true" [disabled]="!editable()"
+                          [ngModel]="terms()" (ngModelChange)="terms.set($event); dirty.set(true)"></textarea></div>
+            </div>
+          </section>
+
+          @if (doc(); as d) {
+            @if (d.kind === 'INVOICE' && d.status !== 'CANCELLED') {
+              <app-payment-panel [currency]="cur()" [docId]="d.id" party="CUSTOMER" [payments]="d.payments" [totals]="d.totals" [canAdd]="canInvoice()" (changed)="paid($event)" />
+            } @else if (d.kind === 'INVOICE' && d.payments.length) {
+              <app-payment-panel [docId]="d.id" party="CUSTOMER" [payments]="d.payments" [totals]="d.totals" [canAdd]="false" />
+            }
+          }
+          @if (doc(); as h) {
+            <section class="p-card hist">
+              <h2>History</h2>
+              <app-history-list [entries]="h.history" />
+            </section>
+          }
+        </div>
+
+        <aside class="side">
+          <section class="p-card sum">
+            <h2>Total</h2>
+            <div class="pf"><label for="se-disc">Discount ({{ curSymbol() }})</label>
+              <p-inputnumber inputId="se-disc" mode="currency" [currency]="cur()" [locale]="curLocale()" [min]="0" [disabled]="!editable()" [ngModel]="discount()" (ngModelChange)="discount.set($event ?? 0); dirty.set(true)" /></div>
+            <div class="misc">
+              <div class="pf"><label for="se-ml">Other charges</label>
+                <input pInputText id="se-ml" maxlength="100" placeholder="e.g. Transport" [disabled]="!editable()" [ngModel]="miscLabel()" (ngModelChange)="miscLabel.set($event); dirty.set(true)" /></div>
+              <div class="pf"><label for="se-ma">{{ curSymbol() }}</label>
+                <p-inputnumber inputId="se-ma" mode="currency" [currency]="cur()" [locale]="curLocale()" [min]="0" [disabled]="!editable()" [ngModel]="miscAmount()" (ngModelChange)="miscAmount.set($event ?? 0); dirty.set(true)" /></div>
+            </div>
+            <div class="gst">
+              <div class="pf"><label for="se-gst">GST</label>
+                <p-select inputId="se-gst" [options]="gstRates" optionLabel="label" optionValue="value" [disabled]="!editable()" [ngModel]="gstRate()" (ngModelChange)="gstRate.set($event); dirty.set(true)" /></div>
+              <label class="check"><p-toggleswitch [disabled]="!editable()" [ngModel]="interState()" (ngModelChange)="interState.set($event); dirty.set(true)" /> Other state (IGST)</label>
+            </div>
+            <dl>
+              <dt>Subtotal</dt><dd>{{ money(sums().subtotal) }}</dd>
+              @if (discount()) { <dt>Discount</dt><dd>− {{ money(discount()) }}</dd> }
+              @if (miscAmount()) { <dt>{{ miscLabel() || 'Other charges' }}</dt><dd>+ {{ money(miscAmount()) }}</dd> }
+              <dt>Taxable value</dt><dd>{{ money(sums().taxable) }}</dd>
+              @if (gstRate()) {
+                @if (interState()) { <dt>IGST {{ gstRate() }}%</dt><dd>{{ money(sums().gst) }}</dd> }
+                @else {
+                  <dt>CGST {{ gstRate() / 2 }}%</dt><dd>{{ money(half().c) }}</dd>
+                  <dt>SGST {{ gstRate() / 2 }}%</dt><dd>{{ money(half().s) }}</dd>
+                }
+              }
+              @if (sums().roundOff) { <dt>Round off</dt><dd>{{ sums().roundOff > 0 ? '+' : '−' }} {{ money(abs(sums().roundOff)) }}</dd> }
+            </dl>
+            <div class="total"><span>{{ invoice() ? 'Total' : order() ? 'Order total' : 'Quoted total' }}</span><b>{{ money(sums().total) }}</b></div>
+            <div class="margin">
+              <span>Supplier cost {{ money(cost()) }}</span>
+              <span [class.neg]="marginValue() < 0">Margin {{ money(marginValue()) }}{{ cost() ? ' (' + marginPct() + '%)' : '' }}</span>
+            </div>
+            @if (formError()) { <p-message severity="error" styleClass="mt">{{ formError() }}</p-message> }
+            @if (editable()) {
+              <div class="p-actions">
+                <p-button [label]="isNew() ? 'Save ' + (invoice() ? 'draft invoice' : names().one.toLowerCase()) : 'Save changes'" icon="pi pi-check"
+                          [loading]="busy()" [disabled]="!isNew() && !dirty()" (onClick)="save()" />
+                @if (doc()?.canDelete) {
+                  <p-button label="Delete" icon="pi pi-trash" [text]="true" severity="danger" (onClick)="remove()" />
+                }
+              </div>
+            }
+          </section>
+        </aside>
+      </div>
+    } @else if (!error()) {
+      <p class="p-loading">Loading…</p>
+    }
+
+    <app-customer-form [(visible)]="customerOpen" [fixedBrand]="brandId()" [preset]="lastSearch()" (saved)="customerAdded($event)" />
+
+    <p-dialog [header]="order() ? 'Cancel this sales order' : 'Cancel this invoice'" [modal]="true" [visible]="cancelOpen()" (visibleChange)="cancelOpen.set($event)"
+              [style]="{ width: '460px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
+      <p class="muted">{{ order() ? 'The customer called the order off. It stays in the list as cancelled; the quotation can be ordered again.'
+        : 'Its items go back to stock and it stays in the list as cancelled. Refund any payments first.' }}</p>
+      <div class="pf"><label for="se-why">Reason *</label>
+        <input pInputText id="se-why" maxlength="300" placeholder="e.g. Order changed; billed again as …" [ngModel]="cancelReason()" (ngModelChange)="cancelReason.set($event)" /></div>
+      <ng-template #footer>
+        <p-button label="Keep it" [text]="true" (onClick)="cancelOpen.set(false)" />
+        <p-button [label]="order() ? 'Cancel order' : 'Cancel invoice'" icon="pi pi-ban" severity="danger" [loading]="busy()" (onClick)="cancel()" />
+      </ng-template>
+    </p-dialog>
+  
+    <p-dialog header="Scan item QR labels" [modal]="true" [visible]="scanOpen()" (visibleChange)="scanOpen.set($event)" [draggable]="false"
+              [style]="{ width: '520px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" appendTo="body">
+      @if (scanOpen()) { <app-qr-scanner (scanned)="onScan($event)" /> }
+      <ul class="scan-log">
+        @for (x of scanLog(); track x.name) {
+          <li><span>{{ x.name }}@if (!x.known) { <small class="muted"> · other line</small> }</span><b>× {{ x.quantity }}</b></li>
+        } @empty { <li class="muted">Show a label to the camera: each scan adds the item; the same item again adds one to its quantity.</li> }
+      </ul>
+      <ng-template #footer><p-button label="Done" icon="pi pi-check" (onClick)="scanOpen.set(false)" /></ng-template>
+    </p-dialog>
+  `,
+  styles: `
+    .copy-from { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: 0 0 12px; padding: 10px 12px;
+      background: var(--accent-softer); border: 1px dashed var(--accent-line); border-radius: 10px; }
+    .copy-from__lbl { font-weight: 600; font-size: .88rem; display: inline-flex; gap: 6px; align-items: center; }
+    :host ::ng-deep .copy-from__kind { min-width: 200px; }
+    :host ::ng-deep .copy-from__bill { flex: 1 1 320px; min-width: 0; }
+    .copy-from small { flex-basis: 100%; font-size: .78rem; }
+    .scan-log { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; max-height: 180px; overflow: auto; }
+    .scan-log li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 6px; background: var(--soft); font-size: .9rem; }
+    :host ::ng-deep .paper { min-width: 128px; }
+    .tags { display: inline-flex; gap: 6px; vertical-align: middle; margin-left: 8px; }
+    .tag-wrap { font-size: .9rem; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+    .main > .p-card:first-child, .side .p-card { margin-top: 0; }
+    .side { position: sticky; top: 76px; }
+    .cust { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+    .cust .pf { min-width: 180px; }
+    .cust .grow { flex: 1 1 280px; }
+    .with-btn { display: flex; gap: 8px; }
+    .with-btn :first-child { flex: 1 1 auto; min-width: 0; }
+    .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .sec-head h2 { margin: 0; font-size: 1.25rem; }
+    .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+    .lines { display: grid; gap: 10px; }
+    .line { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px;
+      border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .no { font-weight: 700; color: var(--muted); padding-top: 9px; text-align: center; }
+    .line__main { display: grid; gap: 8px; min-width: 0; }
+    .line__main p-select { width: 100%; min-width: 0; }
+    :host ::ng-deep .line__main .p-select { width: 100%; min-width: 0; }
+    :host ::ng-deep .item-pick { width: 100%; }
+    .line__main > input { width: 100%; }
+    .line__sub { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; }
+    .line__sub input { width: 100%; }
+    .note { font-size: .78rem; color: var(--muted); }
+    .note.warn { color: #b45309; font-weight: 600; }
+    .line__nums { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: 90px 100px 150px minmax(0, 1fr); gap: 8px; align-items: end; }
+    .line__nums label { font-size: .74rem !important; }
+    :host ::ng-deep .line__nums .p-inputnumber, :host ::ng-deep .line__nums .p-inputnumber input, .line__nums input { width: 100%; min-width: 0; }
+    .amt { display: grid; text-align: right; padding-bottom: 6px; align-self: end; }
+    .amt span { font-size: .72rem; color: var(--muted); }
+    .notes { display: grid; gap: 14px; }
+    .sum { display: grid; gap: 12px; }
+    .sum h2 { margin: 0; }
+    .misc { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 8px; }
+    .gst { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+    .gst .pf { width: 110px; }
+    dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 4px 0 0; font-size: .9rem; }
+    dt { color: var(--muted); }
+    dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    .total { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 10px;
+      background: var(--brand-deep); color: #fff; }
+    .total b { font-size: 1.3rem; }
+    .margin { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+    .neg { color: #b3261e; font-weight: 600; }
+    :host ::ng-deep .mt { margin-top: 4px; }
+    @media (max-width: 1180px) { .layout { grid-template-columns: 1fr; } .side { position: static; } }
+    @media (max-width: 760px) {
+      .line { grid-template-columns: 22px minmax(0, 1fr) auto; }
+      .line__nums { grid-column: 1 / -1; grid-row: auto; grid-template-columns: 1fr 1fr; }
+      .line__sub { grid-template-columns: 1fr; }
+    }
+  `,
+})
+export class SalesEditor implements OnInit {
+  private readonly trade = inject(TradeService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly toast = inject(MessageService);
+  private readonly confirm = inject(ConfirmationService);
+  protected readonly brand = inject(TradeBrand);
+  private readonly auth = inject(AuthService);
+  /** The brand's currency: the saved document's, else the brand chosen. */
+  protected readonly cur = computed(() => this.doc()?.company.currency ?? this.brand.brands().find((b) => b.id === this.brandId())?.currency ?? 'INR');
+  protected readonly curLocale = computed(() => currencyLocale(this.cur()));
+  protected readonly curSymbol = computed(() => CURRENCIES.find((c) => c.code === this.cur())?.symbol ?? '₹');
+  protected readonly money = (v: number | null | undefined) => formatMoney(v, this.cur());
+
+  // ---- copy the items of another bill ----
+
+  protected readonly copyKinds = (Object.keys(DOC_KINDS) as DocKind[]).map((k) => ({ value: k, label: DOC_KINDS[k].one }));
+  protected readonly copyKind = signal<DocKind | null>(null);
+  protected readonly copyRows = signal<SalesRow[]>([]);
+  protected readonly copyLoading = signal(false);
+  /** The bills of the kind chosen (not cancelled, not this one): this customer's first, newest first. */
+  protected readonly copyOptions = computed(() => {
+    const me = this.doc()?.id;
+    const customer = this.customerId();
+    return this.copyRows()
+      .filter((r) => r.status !== 'CANCELLED' && r.id !== me)
+      .sort((a, b) => Number(b.customerId === customer) - Number(a.customerId === customer) || b.docDate.localeCompare(a.docDate) || b.id - a.id)
+      .map((r) => ({ value: r.id, label: `${r.number ?? 'Draft #' + r.id} · ${r.customerName} · ${r.docDate.split('-').reverse().join('/')} · ${this.money(r.total)}` }));
+  });
+
+  /** The kind of bill to copy from: its bills of this brand are listed (all of them, any date). */
+  protected pickCopyKind(kind: DocKind | null): void {
+    this.copyKind.set(kind);
+    this.copyRows.set([]);
+    if (!kind || !this.brandId()) return;
+    this.copyLoading.set(true);
+    const to = new Date();
+    to.setFullYear(to.getFullYear() + 1);
+    this.trade.salesList(kind, this.brandId(), new Date(2000, 0, 1), to).subscribe({
+      next: (rows) => {
+        this.copyRows.set(rows);
+        this.copyLoading.set(false);
+      },
+      error: (e) => {
+        this.copyLoading.set(false);
+        this.toast.add({ severity: 'error', summary: 'The bills could not be listed', detail: apiProblem(e).message });
+      },
+    });
+  }
+
+  /**
+   * The bill's items go into this one's lines (empty lines are dropped first), at the bill's quantities and rates;
+   * nothing is saved until Save. An item no longer sold by this brand comes in as an other line. With no customer
+   * chosen yet, the bill's customer is taken too.
+   */
+  protected copyFrom(id: number | null): void {
+    if (!id) return;
+    this.trade.salesDoc(id).subscribe({
+      next: (src) => {
+        const free = new Set(this.freeKeys());
+        const lines = src.lines.map((l) => {
+          const key = this.nextKey++;
+          const item = l.itemId ? this.itemById().get(l.itemId) : undefined;
+          const itemId = item && item.brand.id === this.brandId() ? item.id : null;
+          if (!itemId) free.add(key);
+          return { key, itemId, name: l.name, size: l.size ?? '', description: l.description ?? '', unit: l.unit ?? '',
+            hsnCode: l.hsnCode ?? '', quantity: l.quantity, rate: l.rate, unitCost: null };
+        });
+        this.lines.update((ls) => [...ls.filter((l) => l.itemId || l.name.trim()), ...lines]);
+        this.freeKeys.set(free);
+        if (!this.customerId() && src.customer) this.customerId.set(src.customer.id);
+        this.dirty.set(true);
+        const label = `${DOC_KINDS[src.kind].one} ${src.number ?? '(draft)'}`;
+        this.toast.add({ severity: 'success', summary: `${lines.length} ${lines.length === 1 ? 'item' : 'items'} copied from ${label}`,
+          detail: 'Not saved yet: change what you need, then save.' });
+      },
+      error: (e) => this.toast.add({ severity: 'error', summary: 'Not copied', detail: apiProblem(e).message }),
+    });
+  }
+  protected readonly abs = Math.abs;
+  protected readonly gstRates = GST_RATES;
+  protected readonly statusLabel = (d: SalesDoc) => docStatus(d.kind, d.status);
+  protected readonly link = (kind: DocKind | null, id: number) => docLink(kind, id);
+  protected readonly kindName = (kind: DocKind | null) => DOC_KINDS[kind ?? 'QUOTATION'].one;
+
+  protected readonly kind = signal<DocKind>(this.route.snapshot.data['kind']);
+  protected readonly invoice = computed(() => this.kind() === 'INVOICE');
+  protected readonly order = computed(() => this.kind() === 'SALES_ORDER');
+  protected readonly quote = computed(() => this.kind() === 'QUOTATION');
+  protected readonly names = computed(() => DOC_KINDS[this.kind()]);
+  protected readonly canOrder = computed(() => this.auth.can('PROD_ORDERS'));
+  protected readonly doc = signal<SalesDoc | null>(null);
+  protected readonly isNew = computed(() => !this.doc());
+  protected readonly ready = signal(false);
+  protected readonly error = signal('');
+  protected readonly formError = signal('');
+  protected readonly busy = signal(false);
+  protected readonly pdfBusy = signal(false);
+  protected readonly printBusy = signal(false);
+  /** A4 or a 7 / 12 / 15 cm roll, remembered on this device (its printer). */
+  protected readonly papers = PAPER_SIZES;
+  protected readonly paper = signal<PaperSize>(savedPaper());
+  protected readonly dirty = signal(false);
+
+  protected readonly brandId = signal<number | null>(null);
+  protected readonly customers = signal<Customer[]>([]);
+  protected readonly items = signal<Item[]>([]);
+  /** Scanning item QR labels into the lines. */
+  protected readonly scanOpen = signal(false);
+  protected readonly scanLog = signal<{ name: string; quantity: number; known: boolean }[]>([]);
+  protected readonly customerId = signal<number | null>(null);
+  protected readonly projectId = signal<number | null>(null);
+  protected readonly projects = signal<ProjectRow[]>([]);
+  /** The customer's projects that are still open (and the one already chosen). */
+  protected readonly projectOptions = computed(() =>
+    this.projects().filter((p) => p.customerId === this.customerId() && ((!p.settled && p.status !== 'CANCELLED') || p.id === this.projectId()))
+      .map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` })));
+  protected readonly docDate = signal<Date | null>(new Date());
+  protected readonly validUntil = signal<Date | null>(null);
+  protected readonly lines = signal<Line[]>([]);
+  /** Lines made as "other" (no item). */
+  protected readonly freeKeys = signal<ReadonlySet<number>>(new Set());
+  protected readonly discount = signal(0);
+  protected readonly miscLabel = signal('');
+  protected readonly miscAmount = signal(0);
+  protected readonly gstRate = signal(18);
+  protected readonly interState = signal(false);
+  protected readonly remarks = signal('');
+  protected readonly terms = signal(DEFAULT_TERMS);
+  protected readonly customerOpen = signal(false);
+  protected readonly lastSearch = signal('');
+  protected readonly cancelOpen = signal(false);
+  protected readonly cancelReason = signal('');
+  private nextKey = 1;
+
+  protected readonly me = computed(() => this.auth.user());
+  protected readonly brandName = computed(() => this.brand.brands().find((b) => b.id === this.brandId())?.name ?? '');
+  protected readonly editable = computed(() => !this.doc() || this.doc()!.editable);
+  protected readonly canInvoice = computed(() => this.auth.can('PROD_INVOICES'));
+  protected readonly title = computed(() => {
+    const d = this.doc();
+    if (!d) return 'New ' + this.names().one.toLowerCase();
+    return DOC_KINDS[d.kind].one + ' ' + (d.number ?? '(draft)');
+  });
+  protected readonly listLink = computed(() => this.names().route);
+  protected readonly pay = computed(() => (this.doc() ? payLabel(this.doc()!.payStatus) : null));
+  protected readonly customer = computed(() => this.customers().find((c) => c.id === this.customerId()) ?? null);
+  protected readonly customerOptions = computed(() =>
+    this.customers().filter((c) => c.brand.id === this.brandId() && (c.active || c.id === this.customerId()))
+      .map((c) => ({ value: c.id, label: `${c.name} · ${c.phone}`, phone: phoneSearchText(c.phone, c.phone2) })),
+  );
+  private readonly itemById = computed(() => new Map(this.items().map((i) => [i.id, i])));
+  protected readonly itemOptions = computed(() =>
+    this.items().filter((i) => i.brand.id === this.brandId() && (i.active || this.lines().some((l) => l.itemId === i.id)))
+      .map((i) => ({ value: i.id, code: i.code, label: `${i.name} · ${i.code}` })),
+  );
+  protected readonly sums = computed(() =>
+    workOut(this.lines().map((l) => this.amount(l)), this.discount(), this.miscAmount(), this.gstRate()),
+  );
+  protected readonly half = computed(() => {
+    const c = money(Math.round((this.sums().gst / 2) * 100) / 100);
+    return { c, s: money(this.sums().gst - c) };
+  });
+  protected readonly cost = computed(() =>
+    money(this.lines().reduce((t, l) => {
+      const unit = l.unitCost ?? (l.itemId ? (this.itemById().get(l.itemId)?.supplierPrice ?? 0) : 0);
+      return t + unit * (l.quantity ?? 0);
+    }, 0)),
+  );
+  protected readonly marginValue = computed(() => money(this.sums().subtotal - this.discount() - this.cost()));
+  protected readonly marginPct = computed(() => (this.cost() ? Math.round((this.marginValue() / this.cost()) * 100) : 0));
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    const preset = Number(this.route.snapshot.queryParamMap.get('customer')) || null;
+    this.brand.load().pipe(
+      switchMap(() => (id && id !== 'new' ? this.trade.salesDoc(Number(id)) : of(null))),
+      switchMap((d) => {
+        if (d) this.fill(d);
+        else {
+          // a new bill is in my own brand (owners may choose another)
+          this.brandId.set(this.auth.user()?.brandId ?? this.brand.brandId());
+          this.customerId.set(preset);
+          this.projectId.set(Number(this.route.snapshot.queryParamMap.get('project')) || null);
+          if (this.quote()) this.validUntil.set(new Date(Date.now() + 15 * 86400000));
+          this.addLine(false);
+          this.dirty.set(false);
+        }
+        // every brand I may use: the list then shows the bill's brand
+        return this.loadLists(null);
+      }),
+    ).subscribe({
+      next: () => {
+        if (preset && !this.doc()) {
+          const c = this.customers().find((x) => x.id === preset);
+          if (c) this.brandId.set(c.brand.id);
+        }
+        this.ready.set(true);
+      },
+      error: (e) => this.error.set(apiProblem(e).message),
+    });
+  }
+
+  private loadLists(brandId: number | null): Observable<unknown> {
+    return forkJoin([this.trade.customers(brandId), this.trade.items(brandId),
+      this.trade.projects(brandId).pipe(catchError(() => of([] as ProjectRow[])))]).pipe(
+      switchMap(([c, i, pj]) => {
+        this.customers.set(c);
+        this.items.set(i);
+        this.projects.set(pj);
+        return of(true);
+      }),
+    );
+  }
+
+  private fill(d: SalesDoc): void {
+    this.doc.set(d);
+    this.kind.set(d.kind);
+    this.brandId.set(d.company.brandId);
+    this.customerId.set(d.customer.id);
+    this.projectId.set(d.projectId);
+    this.docDate.set(fromIsoDate(d.docDate));
+    this.validUntil.set(fromIsoDate(d.validUntil));
+    const free = new Set<number>();
+    this.lines.set(d.lines.map((l) => {
+      const key = this.nextKey++;
+      if (!l.itemId) free.add(key);
+      return {
+        key, itemId: l.itemId, name: l.name, size: l.size ?? '', description: l.description ?? '', unit: l.unit ?? '',
+        hsnCode: l.hsnCode ?? '', quantity: l.quantity, rate: l.rate, unitCost: l.unitCost ?? null,
+      };
+    }));
+    this.freeKeys.set(free);
+    this.discount.set(d.totals.discount);
+    this.miscLabel.set(d.totals.miscLabel ?? '');
+    this.miscAmount.set(d.totals.miscAmount);
+    this.gstRate.set(d.totals.gstRate);
+    this.interState.set(d.totals.interState);
+    this.remarks.set(d.remarks ?? '');
+    this.terms.set(d.terms ?? '');
+    this.dirty.set(false);
+  }
+
+  protected pickBrand(id: number | null): void {
+    this.brandId.set(id);
+    this.customerId.set(null);
+    this.lines.set([]);
+    this.addLine(false);
+  }
+
+  protected addLine(free: boolean): void {
+    const key = this.nextKey++;
+    this.lines.update((ls) => [...ls, { key, itemId: null, name: '', size: '', description: '', unit: free ? 'nos' : '', hsnCode: '',
+      quantity: 1, rate: null, unitCost: null }]);
+    if (free) this.freeKeys.update((s) => new Set(s).add(key));
+    this.dirty.set(true);
+  }
+
+  protected openScan(): void {
+    this.scanLog.set([]);
+    this.scanOpen.set(true);
+  }
+
+  /**
+   * A label scanned: the brand's item with that code goes in at its showroom price (the same item again: one more on
+   * its line, never a new line). A code the brand does not have goes in as another line from the label (no stock out).
+   */
+  protected onScan(text: string): void {
+    const label = parseItemLabel(text);
+    if (!label) {
+      this.toast.add({ severity: 'warn', summary: 'Not an item label', detail: 'This QR code is not one of our item labels.' });
+      return;
+    }
+    const item = this.items().find((i) => i.brand.id === this.brandId() && i.code.toUpperCase() === label.code);
+    let quantity = 1;
+    if (item) {
+      const line = this.lines().find((l) => l.itemId === item.id);
+      if (line) {
+        quantity = (line.quantity ?? 0) + 1;
+        this.patch(line.key, { quantity });
+      } else {
+        const empty = this.lines().find((l) => !l.itemId && !l.name.trim() && !this.freeKeys().has(l.key));
+        let key = empty?.key;
+        if (key === undefined) {
+          this.addLine(false);
+          key = this.lines()[this.lines().length - 1].key;
+        }
+        this.pickItem(key, item.id);
+        this.patch(key, { quantity: 1 });
+      }
+    } else {
+      const line = this.lines().find((l) => !l.itemId && this.freeKeys().has(l.key) && l.name === label.name);
+      if (line) {
+        quantity = (line.quantity ?? 0) + 1;
+        this.patch(line.key, { quantity });
+      } else {
+        this.addLine(true);
+        const key = this.lines()[this.lines().length - 1].key;
+        this.patch(key, { name: label.name, unit: label.unit ?? 'nos', hsnCode: label.hsn ?? '', rate: label.showroomPrice || null, quantity: 1,
+          size: label.sizes && !label.sizes.includes(',') ? label.sizes : '' });
+        this.toast.add({ severity: 'warn', summary: `${label.code} is not in Items & stock`, detail: 'Added as another line from its label; no stock goes out for it.' });
+      }
+    }
+    this.scanLog.update((log) => {
+      const at = log.findIndex((x) => x.name === (item?.name ?? label.name));
+      const entry = { name: item?.name ?? label.name, quantity, known: !!item };
+      return at < 0 ? [entry, ...log] : [entry, ...log.filter((_, i) => i !== at)];
+    });
+  }
+
+  protected removeLine(key: number): void {
+    this.lines.update((ls) => ls.filter((l) => l.key !== key));
+    this.dirty.set(true);
+  }
+
+  protected patch(key: number, change: Partial<Line>): void {
+    this.lines.update((ls) => ls.map((l) => (l.key === key ? { ...l, ...change } : l)));
+    this.dirty.set(true);
+  }
+
+  protected pickItem(key: number, id: number | null): void {
+    const i = id ? this.itemById().get(id) : null;
+    this.patch(key, i
+      ? { itemId: i.id, name: i.name, unit: i.unit, hsnCode: i.hsnCode ?? '', rate: i.showroomPrice, unitCost: null,
+          size: i.sizes && !i.sizes.includes(',') ? i.sizes : '' }
+      : { itemId: null });
+  }
+
+  protected amount(l: Line): number {
+    return money((l.quantity ?? 0) * (l.rate ?? 0));
+  }
+
+  protected sizeHint(l: Line): string {
+    const sizes = l.itemId ? this.itemById().get(l.itemId)?.sizes : null;
+    return sizes ? 'Size: ' + sizes : 'Size';
+  }
+
+  /** Stock and price warnings for the line. */
+  protected lineNote(l: Line): { text: string; warn: boolean } | null {
+    const i = l.itemId ? this.itemById().get(l.itemId) : null;
+    if (!i) return null;
+    const parts: string[] = [];
+    let warn = false;
+    if (l.rate !== null && l.rate < i.minSellPrice) {
+      parts.push(`Below the minimum price ${this.money(i.minSellPrice)}`);
+      warn = true;
+    }
+    if (i.trackStock && this.editable()) {
+      const want = this.lines().filter((x) => x.itemId === i.id).reduce((t, x) => t + (x.quantity ?? 0), 0);
+      if (want > i.onHand) {
+        parts.push(`only ${qty(i.onHand)} ${i.unit} in stock`);
+        warn = warn || this.invoice();
+      } else parts.push(`${qty(i.onHand)} ${i.unit} in stock`);
+    }
+    parts.push(`MRP ${this.money(i.mrp)} · showroom ${this.money(i.showroomPrice)}`);
+    return { text: parts.join(' · '), warn };
+  }
+
+  private body(): SalesBody | null {
+    if (!this.brandId()) return this.problem('Choose the brand.');
+    if (!this.customerId()) return this.problem('Choose the customer.');
+    if (!this.docDate()) return this.problem('Give the date.');
+    const lines = this.lines().filter((l) => l.itemId || l.name.trim());
+    if (!lines.length) return this.problem('Add at least one line.');
+    for (const [n, l] of lines.entries()) {
+      if (!l.name.trim()) return this.problem(`Line ${n + 1}: choose the item or give a name.`);
+      if (!l.quantity || l.quantity <= 0) return this.problem(`Line ${n + 1}: give the quantity.`);
+      if (l.rate === null || l.rate < 0) return this.problem(`Line ${n + 1}: give the rate.`);
+    }
+    if (this.discount() > this.sums().subtotal) return this.problem('The discount is more than the lines add up to.');
+    return {
+      kind: this.kind(), brandId: this.brandId(), customerId: this.customerId()!, projectId: this.projectId(), docDate: toIsoDate(this.docDate())!,
+      validUntil: this.quote() ? toIsoDate(this.validUntil()) : null,
+      lines: lines.map((l) => ({
+        itemId: l.itemId, name: l.name.trim(), size: l.size.trim() || null, description: l.description.trim() || null,
+        unit: l.unit.trim() || null, hsnCode: l.hsnCode.trim() || null, quantity: money(l.quantity!), rate: money(l.rate!),
+      })),
+      discount: money(this.discount()), miscLabel: this.miscLabel().trim() || null, miscAmount: money(this.miscAmount()), gstRate: this.gstRate(),
+      interState: this.interState(), remarks: this.remarks().trim() || null, terms: this.terms().trim() || null,
+    };
+  }
+
+  private problem(message: string): null {
+    this.formError.set(message);
+    return null;
+  }
+
+  protected save(then?: (d: SalesDoc) => void): void {
+    this.formError.set('');
+    const body = this.body();
+    if (!body) return;
+    this.busy.set(true);
+    this.trade.saveSalesDoc(this.doc()?.id ?? null, body).subscribe({
+      next: (d) => {
+        this.busy.set(false);
+        const fresh = !this.doc();
+        this.fill(d);
+        if (fresh) this.router.navigate([this.listLink(), d.id], { replaceUrl: true });
+        if (then) then(d);
+        else this.toast.add({ severity: 'success', summary: fresh ? 'Saved' : 'Changes saved', detail: this.title() });
+      },
+      error: (e) => {
+        this.busy.set(false);
+        const p = apiProblem(e);
+        this.formError.set(Object.values(p.fields)[0] ?? p.message);
+      },
+    });
+  }
+
+  protected setStatus(status: DocStatus): void {
+    const d = this.doc();
+    if (!d) return;
+    this.trade.setStatus(d.id, status).subscribe({
+      next: (x) => {
+        this.fill(x);
+        this.toast.add({ severity: 'success', summary: 'Quotation ' + DOC_STATUS[status].label.toLowerCase() });
+      },
+      error: (e) => this.toast.add({ severity: 'error', summary: 'Not changed', detail: apiProblem(e).message }),
+    });
+  }
+
+  /** The quotation into a draft sales order (items can then be removed or changed). */
+  protected makeOrder(): void {
+    const d = this.doc();
+    if (!d) return;
+    const go = () => this.trade.makeOrder(d.id).subscribe({
+      next: (o) => {
+        this.toast.add({ severity: 'success', summary: `Sales order ${o.number} made`, detail: 'Remove or change items as the customer asked, then confirm it.' });
+        this.router.navigate([DOC_KINDS.SALES_ORDER.route, o.id]);
+      },
+      error: (e) => this.toast.add({ severity: 'error', summary: 'Not made', detail: apiProblem(e).message }),
+    });
+    if (this.dirty() && this.editable()) this.save(() => go());
+    else go();
+  }
+
+  protected makeInvoice(): void {
+    const d = this.doc();
+    if (!d) return;
+    const go = () => this.trade.makeInvoice(d.id).subscribe({
+      next: (inv) => {
+        this.toast.add({ severity: 'success', summary: 'Draft invoice made', detail: 'Check it, then issue it.' });
+        this.router.navigate(['/portal/products/invoices', inv.id]);
+      },
+      error: (e) => this.toast.add({ severity: 'error', summary: 'Not made', detail: apiProblem(e).message }),
+    });
+    if (this.dirty() && this.editable()) this.save(() => go());
+    else go();
+  }
+
+  protected issue(): void {
+    const d = this.doc();
+    if (!d) return;
+    if (d.kind === 'SALES_ORDER') return this.confirmOrder(d);
+    const stockLines = this.lines().filter((l) => l.itemId).length;
+    this.confirm.confirm({
+      header: 'Issue this invoice',
+      message: `It gets its invoice number${stockLines ? ` and ${stockLines} item line${stockLines === 1 ? '' : 's'} leave stock` : ''}. `
+        + 'An issued invoice cannot be changed, only cancelled.',
+      icon: 'pi pi-check-circle',
+      acceptLabel: 'Issue invoice',
+      rejectLabel: 'Not yet',
+      rejectButtonProps: { outlined: true },
+      accept: () => {
+        const run = () => this.trade.issue(d.id).subscribe({
+          next: (x) => {
+            this.fill(x);
+            this.toast.add({ severity: 'success', summary: 'Invoice issued', detail: x.number ?? '' });
+            this.loadLists(null).subscribe();
+          },
+          error: (e) => this.toast.add({ severity: 'error', summary: 'Not issued', detail: apiProblem(e).message, life: 8000 }),
+        });
+        if (this.dirty()) this.save(() => run());
+        else run();
+      },
+    });
+  }
+
+  /** The customer confirmed: the order is fixed and its project moves to Confirmed. */
+  private confirmOrder(d: SalesDoc): void {
+    this.confirm.confirm({
+      header: 'Confirm this sales order',
+      message: 'It cannot be changed after this' + (d.projectId ? `, and project ${d.projectCode} moves to Confirmed` : '') + '. No stock moves until the invoice.',
+      icon: 'pi pi-check-circle', acceptLabel: 'Confirm order', rejectLabel: 'Not yet', rejectButtonProps: { outlined: true },
+      accept: () => {
+        const run = () => this.trade.issue(d.id).subscribe({
+          next: (x) => {
+            this.fill(x);
+            this.toast.add({ severity: 'success', summary: 'Sales order confirmed', detail: (x.number ?? '') + (x.projectCode ? ` · project ${x.projectCode} is Confirmed` : '') });
+          },
+          error: (e) => this.toast.add({ severity: 'error', summary: 'Not confirmed', detail: apiProblem(e).message, life: 8000 }),
+        });
+        if (this.dirty()) this.save(() => run());
+        else run();
+      },
+    });
+  }
+
+  protected cancel(): void {
+    const d = this.doc();
+    if (!d) return;
+    if (!this.cancelReason().trim()) return this.toast.add({ severity: 'warn', summary: 'Give the reason' });
+    this.busy.set(true);
+    this.trade.cancelInvoice(d.id, this.cancelReason().trim()).subscribe({
+      next: (x) => {
+        this.busy.set(false);
+        this.cancelOpen.set(false);
+        this.fill(x);
+        this.toast.add(x.kind === 'SALES_ORDER' ? { severity: 'success', summary: 'Sales order cancelled' }
+          : { severity: 'success', summary: 'Invoice cancelled', detail: 'Its items went back to stock.' });
+      },
+      error: (e) => {
+        this.busy.set(false);
+        this.toast.add({ severity: 'error', summary: 'Not cancelled', detail: apiProblem(e).message, life: 8000 });
+      },
+    });
+  }
+
+  protected remove(): void {
+    const d = this.doc();
+    if (!d) return;
+    this.confirm.confirm({
+      header: 'Delete',
+      message: `Delete this ${d.kind === 'INVOICE' ? 'draft invoice' : DOC_KINDS[d.kind].one.toLowerCase()}?`,
+      icon: 'pi pi-trash',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Keep',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { outlined: true },
+      accept: () => this.trade.deleteSalesDoc(d.id).subscribe({
+        next: () => {
+          this.toast.add({ severity: 'success', summary: 'Deleted' });
+          this.router.navigate([this.listLink()]);
+        },
+        error: (e) => this.toast.add({ severity: 'error', summary: 'Not deleted', detail: apiProblem(e).message }),
+      }),
+    });
+  }
+
+  protected setPaper(size: PaperSize): void {
+    this.paper.set(size);
+    savePaper(size);
+  }
+
+  /** Downloads the PDF on the paper chosen, or (print) opens the print dialog with it. */
+  protected pdf(print = false): void {
+    const d = this.doc();
+    if (!d) return;
+    const busy = print ? this.printBusy : this.pdfBusy;
+    const get = (x: SalesDoc) => {
+      busy.set(true);
+      const size = this.paper();
+      this.trade.salesPdf(x.id, size).subscribe({
+        next: (blob) => {
+          busy.set(false);
+          if (print) printPdf(blob);
+          else saveFile(blob, `${DOC_KINDS[x.kind].one.replace(' ', '-')}-${x.number ?? 'draft-' + x.id}${size === 'A4' ? '' : '-' + size.toLowerCase()}.pdf`);
+        },
+        error: () => {
+          busy.set(false);
+          this.toast.add({ severity: 'error', summary: print ? 'It could not be printed' : 'The PDF could not be made' });
+        },
+      });
+    };
+    if (this.dirty() && this.editable()) this.save((x) => get(x));
+    else get(d);
+  }
+
+  protected paid(d: SalesDoc | unknown): void {
+    this.fill(d as SalesDoc);
+    this.toast.add({ severity: 'success', summary: 'Payments updated' });
+  }
+
+  protected customerAdded(c: Customer): void {
+    this.customers.update((cs) => [...cs, c]);
+    this.customerId.set(c.id);
+    this.dirty.set(true);
+  }
+}

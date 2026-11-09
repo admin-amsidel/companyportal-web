@@ -1,0 +1,143 @@
+/*
+ * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
+ * Designed and developed by AMSIDEL Technologies.
+ */
+/* Global tokens and shared building blocks for Company Portal.
+   Palette follows the Company Portal mark: violet primary, blue and orange as accents, on white.
+   The portal (portal.scss) and the landing page refine these for their own surfaces. */
+:root {
+  --bg: #ffffff;
+  --ink: #16133a;
+  --muted: #5d5b78;
+  --line: #e6e4f2;
+  --pine: #241f4d;
+  --dark: #1b1640;
+  --brass: #6a4bf0;
+  --brass-dark: #5a3ad9;
+  --gold-hi: #c4b5fd;
+  --soft: #f7f6fd;
+  --display: 'Plus Jakarta Sans', 'Figtree', system-ui, sans-serif;
+  --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius: 10px;
+  --shadow: 0 14px 34px rgba(42, 31, 107, 0.1);
+  --header-h: 84px;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-h) + 12px);
+  /* iPhone Safari enlarges text in some blocks by itself (e.g. after turning the phone), which pushes boxes out of line */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iPhone/iPad Safari zooms the whole page into any field with text under 16px and does not zoom back out, so the
+   layout looks broken after picking a date or a leave type. Keep every typing field at 16px or more there. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea,
+  .p-inputtext,
+  .p-select-label,
+  .p-datepicker-input {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* phones held sideways: keep content clear of the notch */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: clip;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+.kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--brass);
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --header-h: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

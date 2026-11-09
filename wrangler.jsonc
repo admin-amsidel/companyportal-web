@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "companyportal-web",
+  "compatibility_date": "2026-10-06",
+  // serves the site and wakes the backend on a schedule (worker/index.js)
+  "main": "worker/index.js",
+  "triggers": {
+    // every 10 minutes, so the Render backend never falls asleep (it sleeps after 15 idle minutes)
+    "crons": ["*/10 * * * *"]
+  },
+  "observability": {
+    "enabled": true
+  },
+  // dist/ is not in git, so build the Angular app before every `wrangler deploy` (Cloudflare's deploy command)
+  "build": {
+    "command": "npm run build"
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/companyportal-web/browser",
+    "not_found_handling": "single-page-application"
+  }
+}

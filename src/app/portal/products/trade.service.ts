@@ -1,0 +1,366 @@
+/*
+ * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
+ * Designed and developed by AMSIDEL Technologies.
+ */
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { silent } from '../busy';
+import { API_BASE } from '../portal.config';
+import { toIsoDate } from '../portal.models';
+import {
+  AgentOption,
+  BrandRef, Customer, HistoryEntry, PersonRef, Project, ProjectBody, ProjectRow, ProjectStatus, StockReceipt, TaskBody, TaskStatus, TradeSubject, DocKind, DocStatus, Item, ItemDetail, OwedReport, Overview, PaymentBody, PaymentReport, ProductType,
+  PurchaseBill, PurchaseBody, PurchaseReport, PurchaseRow, SalesBody, SalesDoc, SalesReport, SalesRow, StockKind, StockReport,
+  Supplier,
+} from './trade.models';
+
+const T = `${API_BASE}/api/trade`;
+
+/** Optional query parameters, leaving out empty ones. */
+function params(values: Record<string, string | number | boolean | Date | null | undefined>): HttpParams {
+  let p = new HttpParams();
+  for (const [k, v] of Object.entries(values)) {
+    if (v === null || v === undefined || v === '') continue;
+    p = p.set(k, v instanceof Date ? toIsoDate(v)! : String(v));
+  }
+  return p;
+}
+
+/** The product portal's backend calls. */
+@Injectable({ providedIn: 'root' })
+export class TradeService {
+  private readonly http = inject(HttpClient);
+
+  brands(): Observable<BrandRef[]> {
+    return this.http.get<BrandRef[]>(`${T}/brands`);
+  }
+
+  // ---- types and items ----
+
+  types(brandId: number | null): Observable<ProductType[]> {
+    return this.http.get<ProductType[]>(`${T}/types`, { params: params({ brandId }) });
+  }
+
+  saveType(id: number | null, body: object): Observable<ProductType> {
+    return id ? this.http.put<ProductType>(`${T}/types/${id}`, body) : this.http.post<ProductType>(`${T}/types`, body);
+  }
+
+  items(brandId: number | null): Observable<Item[]> {
+    return this.http.get<Item[]>(`${T}/items`, { params: params({ brandId }) });
+  }
+
+  /** What an item's QR label holds. */
+  itemQr(id: number): Observable<{ payload: string }> {
+    return this.http.get<{ payload: string }>(`${T}/items/${id}/qr`);
+  }
+
+  /** A sheet of QR labels (A4 PDF): each item as many times as asked. */
+  qrLabels(items: { itemId: number; copies: number }[], showPrice: boolean): Observable<Blob> {
+    return this.http.post(`${T}/items/qr-labels`, { items, showPrice }, { responseType: 'blob' });
+  }
+
+  stockReceipts(brandId: number | null): Observable<StockReceipt[]> {
+    return this.http.get<StockReceipt[]>(`${T}/stock-receipts`, { params: brandId ? { brandId } : {} });
+  }
+
+  submitStockReceipt(body: { brandId: number | null; note: string | null; lines: { payload: string; quantity: number }[] }): Observable<StockReceipt> {
+    return this.http.post<StockReceipt>(`${T}/stock-receipts`, body);
+  }
+
+  approveStockReceipt(id: number, lines: { id: number; quantity: number }[], note: string | null): Observable<StockReceipt> {
+    return this.http.post<StockReceipt>(`${T}/stock-receipts/${id}/approve`, { lines, note });
+  }
+
+  rejectStockReceipt(id: number, note: string): Observable<StockReceipt> {
+    return this.http.post<StockReceipt>(`${T}/stock-receipts/${id}/reject`, { note });
+  }
+
+  item(id: number): Observable<ItemDetail> {
+    return this.http.get<ItemDetail>(`${T}/items/${id}`);
+  }
+
+  saveItem(id: number | null, body: object): Observable<Item> {
+    return id ? this.http.put<Item>(`${T}/items/${id}`, body) : this.http.post<Item>(`${T}/items`, body);
+  }
+
+  adjustStock(id: number, body: { kind: StockKind; quantity: number; movedOn: string; note: string }): Observable<ItemDetail> {
+    return this.http.post<ItemDetail>(`${T}/items/${id}/stock`, body);
+  }
+
+  // ---- suppliers and customers ----
+
+  suppliers(brandId: number | null): Observable<Supplier[]> {
+    return this.http.get<Supplier[]>(`${T}/suppliers`, { params: params({ brandId }) });
+  }
+
+  supplierBills(id: number): Observable<PurchaseRow[]> {
+    return this.http.get<PurchaseRow[]>(`${T}/suppliers/${id}/bills`);
+  }
+
+  saveSupplier(id: number | null, body: object): Observable<Supplier> {
+    return id ? this.http.put<Supplier>(`${T}/suppliers/${id}`, body) : this.http.post<Supplier>(`${T}/suppliers`, body);
+  }
+
+  customers(brandId: number | null): Observable<Customer[]> {
+    return this.http.get<Customer[]>(`${T}/customers`, { params: params({ brandId }) });
+  }
+
+  customer(id: number): Observable<Customer> {
+    return this.http.get<Customer>(`${T}/customers/${id}`);
+  }
+
+  customerDocuments(id: number): Observable<SalesRow[]> {
+    return this.http.get<SalesRow[]>(`${T}/customers/${id}/documents`);
+  }
+
+  saveCustomer(id: number | null, body: object): Observable<Customer> {
+    return id ? this.http.put<Customer>(`${T}/customers/${id}`, body) : this.http.post<Customer>(`${T}/customers`, body);
+  }
+
+  /** Only a customer with no bills, projects or payments; otherwise 409 (mark them inactive instead). */
+  deleteCustomer(id: number): Observable<void> {
+    return this.http.delete<void>(`${T}/customers/${id}`);
+  }
+
+  // ---- quotations and invoices ----
+
+  salesList(kind: DocKind, brandId: number | null, from: Date, to: Date): Observable<SalesRow[]> {
+    return this.http.get<SalesRow[]>(`${T}/sales`, { params: params({ kind, brandId, from, to }) });
+  }
+
+  salesDoc(id: number): Observable<SalesDoc> {
+    return this.http.get<SalesDoc>(`${T}/sales/${id}`);
+  }
+
+  saveSalesDoc(id: number | null, body: SalesBody): Observable<SalesDoc> {
+    return id ? this.http.put<SalesDoc>(`${T}/sales/${id}`, body) : this.http.post<SalesDoc>(`${T}/sales`, body);
+  }
+
+  deleteSalesDoc(id: number): Observable<void> {
+    return this.http.delete<void>(`${T}/sales/${id}`);
+  }
+
+  setStatus(id: number, status: DocStatus): Observable<SalesDoc> {
+    return this.http.post<SalesDoc>(`${T}/sales/${id}/status`, { status });
+  }
+
+  /** A draft sales order from this quotation. */
+  makeOrder(quotationId: number): Observable<SalesDoc> {
+    return this.http.post<SalesDoc>(`${T}/sales/${quotationId}/order`, {});
+  }
+
+  makeInvoice(quotationId: number): Observable<SalesDoc> {
+    return this.http.post<SalesDoc>(`${T}/sales/${quotationId}/invoice`, {});
+  }
+
+  issue(id: number): Observable<SalesDoc> {
+    return this.http.post<SalesDoc>(`${T}/sales/${id}/issue`, {});
+  }
+
+  cancelInvoice(id: number, reason: string): Observable<SalesDoc> {
+    return this.http.post<SalesDoc>(`${T}/sales/${id}/cancel`, { reason });
+  }
+
+  receivePayment(id: number, body: PaymentBody): Observable<SalesDoc> {
+    return this.http.post<SalesDoc>(`${T}/sales/${id}/payments`, body);
+  }
+
+  // ---- purchase bills ----
+
+  purchases(brandId: number | null, from: Date, to: Date): Observable<PurchaseRow[]> {
+    return this.http.get<PurchaseRow[]>(`${T}/purchases`, { params: params({ brandId, from, to }) });
+  }
+
+  purchase(id: number): Observable<PurchaseBill> {
+    return this.http.get<PurchaseBill>(`${T}/purchases/${id}`);
+  }
+
+  savePurchase(id: number | null, body: PurchaseBody): Observable<PurchaseBill> {
+    return id ? this.http.put<PurchaseBill>(`${T}/purchases/${id}`, body) : this.http.post<PurchaseBill>(`${T}/purchases`, body);
+  }
+
+  deletePurchase(id: number): Observable<void> {
+    return this.http.delete<void>(`${T}/purchases/${id}`);
+  }
+
+  receiveBill(id: number, updatePrices: boolean): Observable<PurchaseBill> {
+    return this.http.post<PurchaseBill>(`${T}/purchases/${id}/receive`, { updatePrices });
+  }
+
+  cancelBill(id: number, reason: string): Observable<PurchaseBill> {
+    return this.http.post<PurchaseBill>(`${T}/purchases/${id}/cancel`, { reason });
+  }
+
+  paySupplier(id: number, body: PaymentBody): Observable<PurchaseBill> {
+    return this.http.post<PurchaseBill>(`${T}/purchases/${id}/payments`, body);
+  }
+
+  /** Returns the invoice or purchase bill the payment was on. */
+  voidPayment(id: number, reason: string): Observable<SalesDoc | PurchaseBill> {
+    return this.http.post<SalesDoc | PurchaseBill>(`${T}/payments/${id}/void`, { reason });
+  }
+
+  // ---- projects ----
+
+  projects(brandId: number | null): Observable<ProjectRow[]> {
+    return this.http.get<ProjectRow[]>(`${T}/projects`, { params: params({ brandId }) });
+  }
+
+  project(id: number): Observable<Project> {
+    return this.http.get<Project>(`${T}/projects/${id}`);
+  }
+
+  people(brandId: number | null): Observable<PersonRef[]> {
+    return this.http.get<PersonRef[]>(`${T}/people`, { params: params({ brandId }) });
+  }
+
+  saveProject(id: number | null, body: ProjectBody): Observable<Project> {
+    return id ? this.http.put<Project>(`${T}/projects/${id}`, body) : this.http.post<Project>(`${T}/projects`, body);
+  }
+
+  projectStatus(id: number, status: ProjectStatus, note: string): Observable<Project> {
+    return this.http.post<Project>(`${T}/projects/${id}/status`, { status, note });
+  }
+
+  settleProject(id: number, text: string, commissionAmount: number | null = null, commissionRemarks = ''): Observable<Project> {
+    return this.http.post<Project>(`${T}/projects/${id}/settle`, { text, commissionAmount, commissionRemarks });
+  }
+
+  /** Who can be named on a project. */
+  agents(brandId: number | null): Observable<AgentOption[]> {
+    return this.http.get<AgentOption[]>(`${T}/agents`, { params: params({ brandId }) });
+  }
+
+  reopenProject(id: number, text: string): Observable<Project> {
+    return this.http.post<Project>(`${T}/projects/${id}/reopen`, { text });
+  }
+
+  deleteProject(id: number): Observable<void> {
+    return this.http.delete<void>(`${T}/projects/${id}`);
+  }
+
+  commentProject(id: number, text: string): Observable<Project> {
+    return this.http.post<Project>(`${T}/projects/${id}/comments`, { text });
+  }
+
+  addTask(projectId: number, body: TaskBody): Observable<Project> {
+    return this.http.post<Project>(`${T}/projects/${projectId}/tasks`, body);
+  }
+
+  saveTask(taskId: number, body: TaskBody): Observable<Project> {
+    return this.http.put<Project>(`${T}/project-tasks/${taskId}`, body);
+  }
+
+  taskStatus(taskId: number, status: TaskStatus): Observable<Project> {
+    return this.http.post<Project>(`${T}/project-tasks/${taskId}/status`, { status });
+  }
+
+  deleteTask(taskId: number): Observable<Project> {
+    return this.http.delete<Project>(`${T}/project-tasks/${taskId}`);
+  }
+
+  // ---- history ----
+
+  history(type: TradeSubject, id: number): Observable<HistoryEntry[]> {
+    return this.http.get<HistoryEntry[]>(`${T}/history/${type}/${id}`, { context: silent() });
+  }
+
+  activity(brandId: number | null, from: Date, to: Date): Observable<HistoryEntry[]> {
+    return this.http.get<HistoryEntry[]>(`${T}/history`, { params: params({ brandId, from, to }) });
+  }
+
+  // ---- overview and reports ----
+
+  overview(brandId: number | null): Observable<Overview> {
+    return this.http.get<Overview>(`${T}/overview`, { params: params({ brandId }) });
+  }
+
+  salesReport(f: ReportFilter): Observable<SalesReport> {
+    return this.http.get<SalesReport>(`${T}/reports/sales`, {
+      params: params({ brandId: f.brandId, from: f.from, to: f.to, customerId: f.partyId, itemId: f.itemId, type: f.type, number: f.number }),
+    });
+  }
+
+  purchaseReport(f: ReportFilter): Observable<PurchaseReport> {
+    return this.http.get<PurchaseReport>(`${T}/reports/purchases`, {
+      params: params({ brandId: f.brandId, from: f.from, to: f.to, supplierId: f.partyId, itemId: f.itemId, type: f.type, number: f.number }),
+    });
+  }
+
+  stockReport(f: ReportFilter): Observable<StockReport> {
+    return this.http.get<StockReport>(`${T}/reports/stock`, { params: params({ brandId: f.brandId, from: f.from, to: f.to }) });
+  }
+
+  paymentReport(f: ReportFilter): Observable<PaymentReport> {
+    return this.http.get<PaymentReport>(`${T}/reports/payments`, { params: params({ brandId: f.brandId, from: f.from, to: f.to }) });
+  }
+
+  owedReport(brandId: number | null): Observable<OwedReport> {
+    return this.http.get<OwedReport>(`${T}/reports/owed`, { params: params({ brandId }) });
+  }
+
+  reportExcel(report: string, f: ReportFilter): Observable<Blob> {
+    return this.http.get(`${T}/reports/${report}/excel`, {
+      params: params({ brandId: f.brandId, from: f.from, to: f.to, partyId: f.partyId, itemId: f.itemId, type: f.type, number: f.number }),
+      responseType: 'blob',
+      context: silent(),
+    });
+  }
+
+  /** The quotation or invoice PDF on A4, or as a receipt on a 70, 120 or 150 mm roll. */
+  salesPdf(id: number, size: PaperSize = 'A4'): Observable<Blob> {
+    return this.http.get(`${T}/sales/${id}/pdf`, { params: { size }, responseType: 'blob', context: silent() });
+  }
+}
+
+export interface ReportFilter {
+  brandId: number | null;
+  from: Date;
+  to: Date;
+  partyId?: number | null;
+  itemId?: number | null;
+  type?: string | null;
+  number?: string | null;
+}
+
+/** Saves a downloaded file under this name. */
+/** The paper a quotation or invoice is printed on: an A4 sheet, or a roll 7, 12 or 15 cm wide (no paper wasted). */
+export type PaperSize = 'A4' | '70MM' | '120MM' | '150MM';
+
+export const PAPER_SIZES: { value: PaperSize; label: string }[] = [
+  { value: 'A4', label: 'A4 sheet' },
+  { value: '70MM', label: '7 cm roll' },
+  { value: '120MM', label: '12 cm roll' },
+  { value: '150MM', label: '15 cm roll' },
+];
+
+const PAPER_KEY = 'companyportal.paper';
+
+/** The paper chosen last on this device (its printer); A4 when none. */
+export function savedPaper(): PaperSize {
+  try {
+    const v = localStorage.getItem(PAPER_KEY);
+    return PAPER_SIZES.some((p) => p.value === v) ? (v as PaperSize) : 'A4';
+  } catch {
+    return 'A4';
+  }
+}
+
+export function savePaper(size: PaperSize): void {
+  try {
+    localStorage.setItem(PAPER_KEY, size);
+  } catch {
+    // private window or storage blocked: the choice lasts for this page only
+  }
+}
+
+export function saveFile(blob: Blob, name: string): void {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}

@@ -1,0 +1,303 @@
+<!-- Copyright (c) 2026 AMSIDEL Technologies. All rights reserved. Designed and developed by AMSIDEL Technologies. -->
+<header class="top" [class.top--open]="menuOpen()">
+  <div class="wrap top__bar">
+    <a class="logo" routerLink="/" (click)="closeMenu()" aria-label="{{ product.name }} home">
+      <img src="brand/logo-mark.svg" alt="" width="44" height="44" />
+      <span class="logo__text">
+        <b>{{ product.name }}</b>
+        <small>{{ product.tagline }}</small>
+      </span>
+    </a>
+
+    <nav class="nav" id="site-nav" aria-label="Main">
+      <a routerLink="/" fragment="top" class="nav__link is-active" (click)="closeMenu()">Home</a>
+      <a routerLink="/" fragment="modules" class="nav__link" (click)="closeMenu()">Modules</a>
+      <a routerLink="/" fragment="benefits" class="nav__link" (click)="closeMenu()">Benefits</a>
+      <a routerLink="/" fragment="about" class="nav__link" (click)="closeMenu()">About</a>
+      <a routerLink="/" fragment="support" class="nav__link" (click)="closeMenu()">Support</a>
+      <a routerLink="/login" class="nav__cta" (click)="closeMenu()">
+        <cp-icon name="logIn" /> Sign in
+      </a>
+    </nav>
+
+    <button type="button" class="burger" [attr.aria-expanded]="menuOpen()" aria-controls="site-nav"
+            [attr.aria-label]="menuOpen() ? 'Close menu' : 'Open menu'" (click)="menuOpen.set(!menuOpen())">
+      <cp-icon [name]="menuOpen() ? 'close' : 'menu'" />
+    </button>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <div class="wrap hero__grid">
+      <div class="hero__copy">
+        <p class="eyebrow">All-in-one business portal</p>
+        <h1>
+          One Platform to<br class="br-wide" /> Manage <span class="grad grad--people">People,</span><br class="br-wide" />
+          <span class="grad grad--work">Work &amp;</span> <span class="grad grad--biz">Business</span>
+        </h1>
+        <p class="lede">
+          A unified company portal to manage your employees, attendance, payroll, work logs, products, sales,
+          customers and agents — all in one place.
+        </p>
+        <div class="hero__actions">
+          <a routerLink="/login" class="btn btn--primary"><cp-icon name="logIn" /> Login to Portal</a>
+          <a routerLink="/" fragment="how" class="btn btn--ghost"><cp-icon name="play" /> Watch Overview</a>
+        </div>
+      </div>
+
+      <div class="hero__art">
+        <span class="blob" aria-hidden="true"></span>
+        <span class="spark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <img src="images/hero-team.webp" width="1400" height="788" fetchpriority="high"
+             alt="A small team working together on a laptop showing the Company Portal dashboard" />
+      </div>
+
+      <!-- sign-in card: a working sign-in for people whose company already uses the portal -->
+      <aside class="signin" aria-labelledby="signin-title">
+        <img class="signin__mark" src="brand/logo-mark.svg" alt="" width="52" height="52" />
+        <h2 id="signin-title">{{ product.name }}</h2>
+        @if (auth.user(); as me) {
+          <p class="signin__sub">Welcome back, {{ me.name }}</p>
+          <a routerLink="/portal" class="btn btn--primary btn--block">Open portal <cp-icon name="arrowRight" /></a>
+          <button type="button" class="linkish signin__switch" (click)="signOut()">Not you? Sign out</button>
+        } @else {
+          <p class="signin__sub">Sign in to your account</p>
+          <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+            <label class="visually-hidden" for="lp-user">User ID</label>
+            <div class="field" [class.field--bad]="show('userId')">
+              <cp-icon name="mail" />
+              <input id="lp-user" formControlName="userId" placeholder="Email or Employee ID" autocomplete="username"
+                     autocapitalize="none" spellcheck="false" [attr.aria-invalid]="show('userId')"
+                     aria-describedby="lp-user-err" />
+            </div>
+            @if (show('userId')) { <small class="err" id="lp-user-err">Enter your user ID.</small> }
+
+            <label class="visually-hidden" for="lp-pin">PIN</label>
+            <div class="field" [class.field--bad]="show('password')">
+              <cp-icon name="lock" />
+              <input id="lp-pin" formControlName="password" placeholder="Password / PIN" autocomplete="current-password"
+                     [type]="showPin() ? 'text' : 'password'" [attr.aria-invalid]="show('password')"
+                     aria-describedby="lp-pin-err" />
+              <button type="button" class="field__eye" (click)="showPin.set(!showPin())"
+                      [attr.aria-label]="showPin() ? 'Hide PIN' : 'Show PIN'" [attr.aria-pressed]="showPin()">
+                <cp-icon [name]="showPin() ? 'eyeOff' : 'eye'" />
+              </button>
+            </div>
+            @if (show('password')) { <small class="err" id="lp-pin-err">Enter your PIN.</small> }
+
+            <div class="signin__row">
+              <span class="signin__note"><cp-icon name="shield" /> Secure sign-in</span>
+              <button type="button" class="linkish" (click)="forgotOpen.set(!forgotOpen())" [attr.aria-expanded]="forgotOpen()"
+                      aria-controls="lp-forgot">Forgot password?</button>
+            </div>
+            @if (forgotOpen()) {
+              <p class="signin__hint" id="lp-forgot">Ask your company admin to reset your PIN. You'll set a new one when you next sign in.</p>
+            }
+
+            @if (error()) { <p class="signin__error" role="alert">{{ error() }}</p> }
+
+            <button type="submit" class="btn btn--primary btn--block" [disabled]="busy()">
+              {{ busy() ? 'Signing in…' : 'Login' }} @if (!busy()) { <cp-icon name="arrowRight" /> }
+            </button>
+          </form>
+        }
+      </aside>
+    </div>
+
+    <!-- module strip -->
+    <div class="wrap">
+      <ul class="strip" aria-label="Modules">
+        @for (m of modules; track m.title) {
+          <li>
+            <a routerLink="/" fragment="modules" class="strip__item">
+              <span class="strip__icon tone--{{ m.tone }}"><cp-icon [name]="m.icon" [stroke]="1.8" /></span>
+              <span>{{ m.title }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <!-- benefits on the coloured wave -->
+    <div class="wave" id="benefits">
+      <svg class="wave__edge" viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="wave-fill" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#fb923c" />
+            <stop offset=".26" stop-color="#c084fc" />
+            <stop offset=".5" stop-color="#8b5cf6" />
+            <stop offset=".72" stop-color="#6366f1" />
+            <stop offset="1" stop-color="#38bdf8" />
+          </linearGradient>
+        </defs>
+        <path d="M0 60 C 240 0, 420 0, 720 40 S 1200 90, 1440 20 L1440 90 L0 90 Z" fill="url(#wave-fill)" />
+      </svg>
+      <div class="wave__body">
+        <ul class="wrap benefits">
+          @for (b of benefits; track b.title) {
+            <li>
+              <cp-icon [name]="b.icon" [stroke]="1.6" />
+              <div><b>{{ b.title }}</b><span>{{ b.text }}</span></div>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section class="stats" aria-label="At a glance">
+    <ul class="wrap stats__row">
+      @for (s of stats; track s.label) {
+        <li><b>{{ s.value }}</b><span>{{ s.label }}</span></li>
+      }
+    </ul>
+  </section>
+
+  <!-- ============ MODULES ============ -->
+  <section class="block" id="modules" aria-labelledby="modules-title">
+    <div class="wrap">
+      <header class="block__head">
+        <p class="eyebrow eyebrow--center">Modules</p>
+        <h2 id="modules-title">Everything your business runs on, <span class="grad grad--people">connected</span></h2>
+        <p>Start with the modules you need today and switch on more as you grow. Every module shares the same people,
+          customers and products, so nothing is typed twice.</p>
+      </header>
+
+      <div class="cards">
+        @for (m of modules; track m.title) {
+          <article class="card">
+            <span class="card__icon tone--{{ m.tone }}"><cp-icon [name]="m.icon" [stroke]="1.8" /></span>
+            <h3>{{ m.title }}</h3>
+            <p>{{ m.text }}</p>
+            <ul class="ticks">
+              @for (p of m.points; track p) { <li><cp-icon name="check" [stroke]="2.5" /> {{ p }}</li> }
+            </ul>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="block block--tint" id="how" aria-labelledby="how-title">
+    <div class="wrap how">
+      <div class="how__copy">
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-title">Live in days, <span class="grad grad--biz">not months</span></h2>
+        <p class="muted">No servers to install and nothing to download. {{ product.name }} runs in the browser on
+          desktops, tablets and phones, so your whole team can use it from day one.</p>
+        <ol class="steps">
+          @for (s of steps; track s.title; let i = $index) {
+            <li>
+              <span class="steps__num">{{ i + 1 }}</span>
+              <div><h3>{{ s.title }}</h3><p>{{ s.text }}</p></div>
+            </li>
+          }
+        </ol>
+      </div>
+
+      <!-- a small product preview drawn in HTML: sharp at any size and light to load -->
+      <div class="preview" aria-hidden="true">
+        <div class="preview__bar"><i></i><i></i><i></i><span>companyportal / dashboard</span></div>
+        <div class="preview__body">
+          <div class="preview__side">
+            <img src="brand/logo-mark.svg" alt="" width="26" height="26" />
+            @for (m of modules.slice(0, 6); track m.title) {
+              <span class="tone--{{ m.tone }}"><cp-icon [name]="m.icon" [stroke]="1.8" /></span>
+            }
+          </div>
+          <div class="preview__main">
+            <div class="preview__kpis">
+              <div><small>Present today</small><b>46 / 52</b><em class="up">▲ 4%</em></div>
+              <div><small>On leave</small><b>3</b><em>this week</em></div>
+              <div><small>Sales this month</small><b>₹ 18.4L</b><em class="up">▲ 12%</em></div>
+            </div>
+            <div class="preview__chart">
+              <small>Monthly sales</small>
+              <div class="bars">
+                @for (h of [38, 52, 46, 64, 58, 72, 68, 84, 78, 92]; track $index) {
+                  <span [style.height.%]="h"></span>
+                }
+              </div>
+            </div>
+            <div class="preview__list">
+              <div><span class="dot tone--green"></span>Leave approved · 2 requests<b>Today</b></div>
+              <div><span class="dot tone--orange"></span>Stock received · 120 items<b>10:24</b></div>
+              <div><span class="dot tone--violet"></span>Payslips published · Oct<b>Yesterday</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MORE ============ -->
+  <section class="block" id="about" aria-labelledby="about-title">
+    <div class="wrap">
+      <header class="block__head">
+        <p class="eyebrow eyebrow--center">Built for growing businesses</p>
+        <h2 id="about-title">Made for the way <span class="grad grad--work">real companies</span> work</h2>
+        <p>{{ product.name }} grew out of running a real business: one place for the office, the shop floor and the
+          people on the road. It is secure by default and ready for more than one brand.</p>
+      </header>
+      <div class="extras">
+        @for (f of extras; track f.title) {
+          <div class="extra">
+            <span class="extra__icon"><cp-icon [name]="f.icon" [stroke]="1.8" /></span>
+            <div><h3>{{ f.title }}</h3><p>{{ f.text }}</p></div>
+          </div>
+        }
+      </div>
+
+      <div class="security">
+        <cp-icon name="shield" [stroke]="1.6" />
+        <div>
+          <h3>Security that is switched on from day one</h3>
+          <p>PIN rules, lock-out after repeated wrong attempts, sign-out everywhere on a PIN change, sessions that expire,
+            and role- and menu-based permissions enforced on every request.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CTA / SUPPORT ============ -->
+  <section class="cta" id="support" aria-labelledby="cta-title">
+    <div class="wrap cta__box">
+      <div>
+        <h2 id="cta-title">Ready to bring your whole company into one portal?</h2>
+        <p>Tell us about your business and we'll show you {{ product.name }} with your own modules and roles.
+          Already a customer? Sign in, or ask your admin for help.</p>
+      </div>
+      <div class="cta__actions">
+        @if (demoHref) {
+          <a class="btn btn--light" [href]="demoHref"><cp-icon name="mail" /> Request a demo</a>
+        }
+        <a class="btn btn--outline-light" routerLink="/login"><cp-icon name="logIn" /> Sign in</a>
+        @if (product.phone) {
+          <a class="cta__phone" [href]="phoneHref"><cp-icon name="phone" /> {{ product.phone }}</a>
+        }
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__row">
+    <a class="logo logo--small" routerLink="/" fragment="top">
+      <img src="brand/logo-mark.svg" alt="" width="32" height="32" />
+      <span class="logo__text"><b>{{ product.name }}</b></span>
+    </a>
+    <nav class="foot__links" aria-label="Footer">
+      <a routerLink="/" fragment="modules">Modules</a>
+      <a routerLink="/" fragment="benefits">Benefits</a>
+      <a routerLink="/" fragment="about">About</a>
+      @if (salesHref) { <a [href]="salesHref">Contact sales</a> }
+      <a routerLink="/login">Sign in</a>
+    </nav>
+    <p class="foot__credit">{{ credits.copyright }} · {{ credits.line }}</p>
+  </div>
+</footer>
