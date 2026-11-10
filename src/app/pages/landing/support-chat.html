@@ -1,0 +1,68 @@
+<!-- Copyright (c) 2026 AMSIDEL Technologies. All rights reserved. Designed and developed by AMSIDEL Technologies. -->
+@if (open()) {
+  <section class="chat" id="support-chat" role="dialog" aria-labelledby="chat-title" aria-modal="false">
+    <header class="chat__head">
+      <span class="chat__avatar"><img src="brand/logo-mark.svg" alt="" width="26" height="26" /></span>
+      <div class="chat__who">
+        <h2 id="chat-title">{{ cfg.botName }}</h2>
+        <small><i class="chat__dot" aria-hidden="true"></i> {{ product.name }} · replies instantly</small>
+      </div>
+      <button type="button" class="chat__close" (click)="close()" aria-label="Close chat">
+        <cp-icon name="close" />
+      </button>
+    </header>
+
+    <div class="chat__log" #log role="log" aria-live="polite" aria-relevant="additions">
+      @for (m of messages(); track $index) {
+        <div class="msg msg--{{ m.from }}">
+          <div class="msg__bubble">
+            @for (line of m.lines; track $index) { <p>{{ line }}</p> }
+            @if (m.points?.length) {
+              <ul>
+                @for (p of m.points; track $index) { <li><cp-icon name="check" [stroke]="2.5" /> {{ p }}</li> }
+              </ul>
+            }
+          </div>
+        </div>
+      }
+      @if (typing()) {
+        <div class="msg msg--bot" aria-label="Assistant is typing">
+          <div class="msg__bubble msg__typing"><i></i><i></i><i></i></div>
+        </div>
+      }
+      @if (chips().length) {
+        <div class="chips" role="group" aria-label="Suggested replies">
+          @for (c of chips(); track c.label) {
+            <button type="button" class="chip" [class.chip--primary]="c.primary" (click)="c.run()">{{ c.label }}</button>
+          }
+        </div>
+      }
+    </div>
+
+    <form class="chat__bar" (submit)="submit($event)">
+      <label class="visually-hidden" for="chat-field">{{ input().label }}</label>
+      <input #field id="chat-field" [type]="input().type" [placeholder]="input().placeholder"
+             [attr.autocomplete]="input().auto" [disabled]="inputDisabled()" maxlength="200"
+             [attr.min]="input().type === 'date' ? minDate : null" [attr.max]="input().type === 'date' ? maxDate : null" />
+      <button type="submit" class="chat__send" [disabled]="inputDisabled()" aria-label="Send">
+        <cp-icon name="arrowRight" [stroke]="2.4" />
+      </button>
+    </form>
+    <p class="chat__foot">
+      Your details are used only to contact you about {{ product.name }}.
+      @if (product.phone) { Prefer to call? <a [href]="phoneHref">{{ product.phone }}</a> }
+    </p>
+  </section>
+}
+
+<div class="launch">
+  @if (nudge() && !open()) {
+    <button type="button" class="launch__nudge" (click)="toggle()">
+      Questions about pricing or a demo? <b>Chat with us</b>
+    </button>
+  }
+  <button type="button" class="launch__btn" (click)="toggle()" [attr.aria-expanded]="open()" aria-controls="support-chat"
+          [attr.aria-label]="open() ? 'Close chat' : 'Chat with us'">
+    <cp-icon [name]="open() ? 'close' : 'chat'" [stroke]="2" />
+  </button>
+</div>

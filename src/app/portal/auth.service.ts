@@ -5,7 +5,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, catchError, map, of, shareReplay, tap, timeout } from 'rxjs';
+import { Observable, catchError, map, of, retry, shareReplay, tap, throwError, timeout, timer } from 'rxjs';
 import { silent } from './busy';
 import { API_BASE } from './portal.config';
 import { Employee, LoginResponse, MyAccess, MyDetails } from './portal.models';
@@ -19,6 +19,8 @@ interface Session {
 
 const STORAGE_KEY = 'companyportal.portal.session';
 const SIGN_OUT_WAIT_MS = 1500;
+/** How many more times a sign-in the server was too busy to check (503) is sent again. */
+const LOGIN_BUSY_RETRIES = 3;
 /** My menus as last loaded, for the next page load (with whose they are). */
 const ACCESS_KEY = 'companyportal.portal.access.v2';
 
@@ -148,10 +150,24 @@ export class AuthService {
     return this.token() !== null;
   }
 
+  /**
+   * Many people signing in at once (the office at 9:00): the server answers 503 "busy" to those it could not check
+   * in time, without checking their PIN, so asking again is safe and does not count as a wrong attempt. Up to three
+   * more tries, about 2, 4 and 8 seconds apart with some spread, so the retries do not all arrive together. Only 503:
+   * anything else (a wrong PIN, a 502 while the server restarts, no network) is shown at once.
+   */
   login(userId: string, password: string): Observable<Employee> {
-    return this.http
-      .post<LoginResponse>(`${API_BASE}/api/auth/login`, { userId, password })
-      .pipe(tap((r) => this.store(r)), map((r) => r.user));
+    return this.http.post<LoginResponse>(`${API_BASE}/api/auth/login`, { userId, password }).pipe(
+      retry({
+        count: LOGIN_BUSY_RETRIES,
+        delay: (err: unknown, attempt: number) =>
+          err instanceof HttpErrorResponse && err.status === 503
+            ? timer(1000 * 2 ** attempt * (0.75 + Math.random() * 0.5))
+            : throwError(() => err),
+      }),
+      tap((r) => this.store(r)),
+      map((r) => r.user),
+    );
   }
 
   /** The backend answers with a fresh token; sessions on other devices end. */

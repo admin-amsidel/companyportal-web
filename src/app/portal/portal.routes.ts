@@ -278,6 +278,13 @@ export const PORTAL_ROUTES: Routes = [
         loadComponent: () => import('./pages/employee-generator').then((m) => m.EmployeeGenerator),
       },
       {
+        path: 'admin/enquiries',
+        title: 'Website Enquiries · Company Portal',
+        canActivate: [menuGuard],
+        data: { menu: 'ENQUIRIES' },
+        loadComponent: () => import('./pages/enquiries').then((m) => m.Enquiries),
+      },
+      {
         path: 'admin/storage',
         title: 'Storage · Company Portal',
         canActivate: [menuGuard],

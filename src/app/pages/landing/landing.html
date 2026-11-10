@@ -15,9 +15,6 @@
       <a routerLink="/" fragment="benefits" class="nav__link" (click)="closeMenu()">Benefits</a>
       <a routerLink="/" fragment="about" class="nav__link" (click)="closeMenu()">About</a>
       <a routerLink="/" fragment="support" class="nav__link" (click)="closeMenu()">Support</a>
-      <a routerLink="/login" class="nav__cta" (click)="closeMenu()">
-        <cp-icon name="logIn" /> Sign in
-      </a>
     </nav>
 
     <button type="button" class="burger" [attr.aria-expanded]="menuOpen()" aria-controls="site-nav"
@@ -43,7 +40,11 @@
           customers and agents — all in one place.
         </p>
         <div class="hero__actions">
-          <a routerLink="/login" class="btn btn--primary"><cp-icon name="logIn" /> Login to Portal</a>
+          @if (auth.user()) {
+            <a routerLink="/portal" class="btn btn--primary"><cp-icon name="logIn" /> Open Portal</a>
+          } @else {
+            <a routerLink="/login" class="btn btn--primary"><cp-icon name="logIn" /> Login to Portal</a>
+          }
           <a routerLink="/" fragment="how" class="btn btn--ghost"><cp-icon name="play" /> Watch Overview</a>
         </div>
       </div>
@@ -54,57 +55,6 @@
         <img src="images/hero-team.webp" width="1400" height="788" fetchpriority="high"
              alt="A small team working together on a laptop showing the Company Portal dashboard" />
       </div>
-
-      <!-- sign-in card: a working sign-in for people whose company already uses the portal -->
-      <aside class="signin" aria-labelledby="signin-title">
-        <img class="signin__mark" src="brand/logo-mark.svg" alt="" width="52" height="52" />
-        <h2 id="signin-title">{{ product.name }}</h2>
-        @if (auth.user(); as me) {
-          <p class="signin__sub">Welcome back, {{ me.name }}</p>
-          <a routerLink="/portal" class="btn btn--primary btn--block">Open portal <cp-icon name="arrowRight" /></a>
-          <button type="button" class="linkish signin__switch" (click)="signOut()">Not you? Sign out</button>
-        } @else {
-          <p class="signin__sub">Sign in to your account</p>
-          <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-            <label class="visually-hidden" for="lp-user">User ID</label>
-            <div class="field" [class.field--bad]="show('userId')">
-              <cp-icon name="mail" />
-              <input id="lp-user" formControlName="userId" placeholder="Email or Employee ID" autocomplete="username"
-                     autocapitalize="none" spellcheck="false" [attr.aria-invalid]="show('userId')"
-                     aria-describedby="lp-user-err" />
-            </div>
-            @if (show('userId')) { <small class="err" id="lp-user-err">Enter your user ID.</small> }
-
-            <label class="visually-hidden" for="lp-pin">PIN</label>
-            <div class="field" [class.field--bad]="show('password')">
-              <cp-icon name="lock" />
-              <input id="lp-pin" formControlName="password" placeholder="Password / PIN" autocomplete="current-password"
-                     [type]="showPin() ? 'text' : 'password'" [attr.aria-invalid]="show('password')"
-                     aria-describedby="lp-pin-err" />
-              <button type="button" class="field__eye" (click)="showPin.set(!showPin())"
-                      [attr.aria-label]="showPin() ? 'Hide PIN' : 'Show PIN'" [attr.aria-pressed]="showPin()">
-                <cp-icon [name]="showPin() ? 'eyeOff' : 'eye'" />
-              </button>
-            </div>
-            @if (show('password')) { <small class="err" id="lp-pin-err">Enter your PIN.</small> }
-
-            <div class="signin__row">
-              <span class="signin__note"><cp-icon name="shield" /> Secure sign-in</span>
-              <button type="button" class="linkish" (click)="forgotOpen.set(!forgotOpen())" [attr.aria-expanded]="forgotOpen()"
-                      aria-controls="lp-forgot">Forgot password?</button>
-            </div>
-            @if (forgotOpen()) {
-              <p class="signin__hint" id="lp-forgot">Ask your company admin to reset your PIN. You'll set a new one when you next sign in.</p>
-            }
-
-            @if (error()) { <p class="signin__error" role="alert">{{ error() }}</p> }
-
-            <button type="submit" class="btn btn--primary btn--block" [disabled]="busy()">
-              {{ busy() ? 'Signing in…' : 'Login' }} @if (!busy()) { <cp-icon name="arrowRight" /> }
-            </button>
-          </form>
-        }
-      </aside>
     </div>
 
     <!-- module strip -->
@@ -301,3 +251,5 @@
     <p class="foot__credit">{{ credits.copyright }} · {{ credits.line }}</p>
   </div>
 </footer>
+
+<cp-support-chat />
