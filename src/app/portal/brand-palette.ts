@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 
 /** A colour set a brand can choose. colors: the whole set as shown to choose from. base and accent: what the portal is coloured with. */

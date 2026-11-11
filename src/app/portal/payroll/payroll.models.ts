@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 /** Payroll set-up: pay components and each employee's salary for a financial year (April to March). */
 

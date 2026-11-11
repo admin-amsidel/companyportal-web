@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -20,6 +20,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { API_BASE } from '../portal.config';
 import { apiProblem, TagSeverity } from '../portal.models';
 import { ExcelTable } from '../excel-export';
+import { phoneMatches } from '../phone-input';
 
 const API = `${API_BASE}/api/enquiries`;
 
@@ -216,12 +217,10 @@ export class Enquiries implements OnInit {
 
   protected readonly shown = computed(() => {
     const q = this.search().trim().toLowerCase();
-    const digits = q.replace(/\D/g, '');
     return this.rows().filter((e) =>
       (!this.status() || e.status === this.status()) &&
       (!this.kind() || e.kind === this.kind()) &&
-      (!q || [e.name, e.email, e.company ?? ''].some((v) => v.toLowerCase().includes(q))
-        || (digits.length >= 3 && e.phone.replace(/\D/g, '').includes(digits))));
+      (!q || [e.name, e.email, e.company ?? ''].some((v) => v.toLowerCase().includes(q)) || phoneMatches(q, e.phone)));
   });
 
   protected readonly editing = signal<Enquiry | null>(null);

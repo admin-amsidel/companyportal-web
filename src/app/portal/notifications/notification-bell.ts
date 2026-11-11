@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, ElementRef, HostListener, inject, input, OnDestroy, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { silent } from '../busy';
 import { timeLabel } from '../dashboard/dashboard.service';
@@ -28,6 +29,8 @@ interface Item {
 interface Feed {
   pollMinutes: number;
   items: Item[];
+  /** Website enquiries nobody has followed up yet (0 without the Website enquiries menu). */
+  newEnquiries: number;
 }
 
 /**
@@ -38,10 +41,11 @@ interface Feed {
  */
 @Component({
   selector: 'app-notification-bell',
+  imports: [RouterLink],
   template: `
     <button type="button" class="bell" [class.alone]="!besideChat()" [attr.aria-label]="label()" aria-haspopup="dialog" [attr.aria-expanded]="open()" (click)="toggle()">
       <i class="pi pi-bell" aria-hidden="true"></i>
-      @if (items().length) { <span class="badge" aria-hidden="true">{{ items().length > 99 ? '99+' : items().length }}</span> }
+      @if (count()) { <span class="badge" aria-hidden="true">{{ count() > 99 ? '99+' : count() }}</span> }
     </button>
 
     @if (open()) {
@@ -52,6 +56,16 @@ interface Feed {
           <button type="button" class="close" aria-label="Close notifications" (click)="open.set(false)"><i class="pi pi-times" aria-hidden="true"></i></button>
         </header>
         <ul>
+          @if (enquiries()) {
+            <li class="enq">
+              <span class="icon" aria-hidden="true"><i class="pi pi-inbox"></i></span>
+              <a class="text" routerLink="/portal/admin/enquiries" (click)="open.set(false)">
+                <small class="state">Website enquiries</small>
+                <b>{{ enquiries() }} new {{ enquiries() === 1 ? 'request' : 'requests' }} to follow up</b>
+                <small>Call-back and demo requests from the website chat · open the list</small>
+              </a>
+            </li>
+          }
           @for (n of items(); track n.meetingId + n.kind) {
             <li [class.closed]="n.kind === 'CLOSED'">
               <span class="icon" aria-hidden="true"><i [class]="n.kind === 'CLOSED' ? 'pi pi-check-circle' : 'pi pi-calendar-clock'"></i></span>
@@ -63,7 +77,7 @@ interface Feed {
               <button type="button" class="clear" [attr.aria-label]="'Clear: ' + n.title" (click)="clear(n)"><i class="pi pi-times" aria-hidden="true"></i></button>
             </li>
           } @empty {
-            <li class="none">{{ loaded() ? 'Nothing new.' : 'Checking…' }}</li>
+            @if (!enquiries()) { <li class="none">{{ loaded() ? 'Nothing new.' : 'Checking…' }}</li> }
           }
         </ul>
       </section>
@@ -96,6 +110,9 @@ interface Feed {
     .text b { font-size: .9rem; font-weight: 600; }
     small { font-size: .77rem; color: var(--muted); }
     .state { font-weight: 700; color: var(--brass-dark); }
+    .enq .text { color: inherit; text-decoration: none; }
+    .enq .text:hover b { text-decoration: underline; }
+    .enq .icon { background: #fee2e2; color: #b91c1c; }
     .closed .state { color: var(--muted); }
     @media (max-width: 760px) {
       .bell { right: 16px; bottom: 80px; margin-right: 3px; }
@@ -114,11 +131,14 @@ export class NotificationBell implements OnInit, OnDestroy {
   readonly besideChat = input(false);
 
   protected readonly items = signal<Item[]>([]);
+  /** New website enquiries: shown until they are followed up on their page, not cleared here. */
+  protected readonly enquiries = signal(0);
+  protected readonly count = computed(() => this.items().length + this.enquiries());
   protected readonly open = signal(false);
   protected readonly loaded = signal(false);
   protected readonly clearing = signal(false);
   protected readonly label = computed(() => {
-    const n = this.items().length;
+    const n = this.count();
     return n ? `Notifications, ${n} new` : 'Notifications';
   });
 
@@ -164,6 +184,7 @@ export class NotificationBell implements OnInit, OnDestroy {
     this.http.get<Feed>(API, { context: silent() }).subscribe({
       next: (f) => {
         this.items.set(f.items);
+        this.enquiries.set(f.newEnquiries ?? 0);
         this.loaded.set(true);
         this.everyMs = Math.max(1, f.pollMinutes) * MINUTE;
         this.next();

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 
 /** What an item's QR label holds: everything about the item but its stock ("t": "CP-ITEM"). */

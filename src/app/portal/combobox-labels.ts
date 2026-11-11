@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 
 /** Dropdowns drawn as a span or div (PrimeNG Select), not an input, with an id a label can point at. */

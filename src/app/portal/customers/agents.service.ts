@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
@@ -27,6 +27,9 @@ export interface Agent {
   address: string | null;
   location: string | null;
   upiId: string | null;
+  /** Where commission is paid by bank transfer, with its IFSC; both or neither. */
+  bankAccount: string | null;
+  ifsc: string | null;
   notes: string | null;
   active: boolean;
   photoUpdatedAt: string | null;
@@ -44,6 +47,8 @@ export interface AgentBody {
   address: string;
   location: string;
   upiId: string;
+  bankAccount: string;
+  ifsc: string;
   notes: string;
   active: boolean;
 }
@@ -57,6 +62,8 @@ export interface Commission {
   agentName: string;
   agentPhone: string;
   agentUpi: string | null;
+  agentBankAccount: string | null;
+  agentIfsc: string | null;
   projectId: number;
   projectCode: string;
   projectName: string;
@@ -161,4 +168,15 @@ export class AgentsService {
   setStatus(id: number, body: StatusBody): Observable<Commission> {
     return this.http.put<Commission>(`${A}/commissions/${id}/status`, body);
   }
+}
+
+/** Both or neither, each in its shape (the server checks the same). */
+export function bankProblem(account: string, ifsc: string): string {
+  const a = account.trim();
+  const i = ifsc.trim();
+  if (a && !i) return 'Give the IFSC too, or leave out the bank account number.';
+  if (i && !a) return 'Give the bank account number too, or leave out the IFSC.';
+  if (a && !/^\d{6,20}$/.test(a)) return 'Bank account number: 6 to 20 digits.';
+  if (i && !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(i)) return 'IFSC is 11 characters, e.g. HDFC0001234.';
+  return '';
 }

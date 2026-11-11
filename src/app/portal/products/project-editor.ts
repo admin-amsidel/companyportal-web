@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal, effect, untracked } from '@angular/core';
@@ -18,12 +18,15 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
+import { TooltipModule } from 'primeng/tooltip';
 import { catchError, forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../auth.service';
 import { rupees } from '../payroll/payroll.models';
 import { phoneSearchText } from '../phone-input';
 import { apiProblem, fromIsoDate, toIsoDate } from '../portal.models';
 import { CustomerForm } from '../customers/customer-form';
+import { AgentForm } from '../customers/agent-form';
+import { Agent } from '../customers/agents.service';
 import { HistoryList } from './history-list';
 import { ProjectStages } from './project-stages';
 import { ProjectStatusService, ProjectStatusView } from './project-status.service';
@@ -42,8 +45,8 @@ import { TradeService } from './trade.service';
 @Component({
   selector: 'app-project-editor',
   imports: [
-    FormsModule, DatePipe, RouterLink, CustomerForm, HistoryList, ButtonModule, DatePickerModule, DialogModule, InputNumberModule,
-    InputTextModule, MessageModule, MultiSelectModule, ProgressBarModule, SelectModule, TagModule, TextareaModule,
+    FormsModule, DatePipe, RouterLink, CustomerForm, AgentForm, HistoryList, ButtonModule, DatePickerModule, DialogModule, InputNumberModule,
+    InputTextModule, MessageModule, MultiSelectModule, ProgressBarModule, SelectModule, TagModule, TextareaModule, TooltipModule,
   ],
   template: `
     <div class="p-head">
@@ -117,9 +120,15 @@ import { TradeService } from './trade.service';
                                placeholder="Who works on it" appendTo="body" [disabled]="!editable()" [ngModel]="f.memberIds()"
                                (ngModelChange)="f.memberIds.set($event); dirty.set(true)" /></div>
               <div class="pf span"><label for="pj-agent">Agent <span class="opt">(who helped find this project)</span></label>
-                <p-select inputId="pj-agent" [options]="agentOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label,phone" [showClear]="true"
-                          placeholder="None" emptyMessage="No agents for this brand" [disabled]="!editable()" [ngModel]="f.agentId()"
-                          (ngModelChange)="f.agentId.set($event); dirty.set(true)" /></div>
+                <div class="with-btn">
+                  <p-select inputId="pj-agent" [options]="agentOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label,phone" [showClear]="true"
+                            placeholder="None" emptyMessage="No agents for this brand" [disabled]="!editable()" [ngModel]="f.agentId()"
+                            (ngModelChange)="f.agentId.set($event); dirty.set(true)" />
+                  @if (editable() && canAddAgent()) {
+                    <p-button icon="pi pi-user-plus" [outlined]="true" ariaLabel="New agent" [disabled]="!f.brandId()"
+                              [pTooltip]="f.brandId() ? 'New agent' : 'Choose the brand first'" (onClick)="agentOpen.set(true)" />
+                  }
+                </div></div>
               <div class="pf"><label for="pj-start">Start date</label>
                 <p-datepicker inputId="pj-start" dateFormat="dd/mm/yy" [showIcon]="true" [disabled]="!editable()" [ngModel]="f.startDate()" (ngModelChange)="f.startDate.set($event); dirty.set(true)" /></div>
               <div class="pf"><label for="pj-end">End date</label>
@@ -301,6 +310,7 @@ import { TradeService } from './trade.service';
     }
 
     <app-customer-form [(visible)]="customerOpen" [fixedBrand]="f.brandId()" (saved)="customerAdded($event)" />
+    <app-agent-form [(visible)]="agentOpen" [brandId]="f.brandId()" [brandName]="brandName()" (saved)="agentAdded($event)" />
 
     <!-- task -->
     <p-dialog [header]="taskEditing() ? 'Change task' : 'Add task'" [modal]="true" [visible]="taskOpen()" (visibleChange)="taskOpen.set($event)"
@@ -444,6 +454,10 @@ export class ProjectEditor implements OnInit {
   protected readonly customers = signal<Customer[]>([]);
   protected readonly people = signal<PersonRef[]>([]);
   protected readonly customerOpen = signal(false);
+  protected readonly agentOpen = signal(false);
+  /** The "new agent" button: only with the Add agent tick (the server checks it too). */
+  protected readonly canAddAgent = computed(() => this.auth.can('AGENT_ADD'));
+  protected readonly brandName = computed(() => this.brand.brands().find((b) => b.id === this.f.brandId())?.name ?? null);
   protected readonly comment = signal('');
   protected readonly open = signal<ReadonlySet<number>>(new Set());
   protected readonly settleOpen = signal(false);
@@ -726,6 +740,13 @@ export class ProjectEditor implements OnInit {
       acceptLabel: 'Delete', rejectLabel: 'Keep', acceptButtonProps: { severity: 'danger' }, rejectButtonProps: { outlined: true },
       accept: () => this.trade.deleteTask(task.id).subscribe({ next: (r) => this.done(r, 'Task deleted'), error: (e) => this.failed(e) }),
     });
+  }
+
+  /** A new agent from the "new agent" button: in the list at once, and chosen for this project. */
+  protected agentAdded(a: Agent): void {
+    this.agents.update((list) => [...list, { id: a.id, code: a.code, name: a.name, phone: a.phone, brandId: a.brandId, active: a.active }]);
+    this.f.agentId.set(a.id);
+    this.dirty.set(true);
   }
 
   protected customerAdded(c: Customer): void {

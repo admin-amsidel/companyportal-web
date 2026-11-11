@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -84,6 +84,9 @@ import { ExcelTable } from '../excel-export';
               <span class="mrow__end">{{ hrs(t.loggedHours) }}<small>logged</small></span>
             </button>
             <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" size="small" [ariaLabel]="'Edit task ' + t.code" (onClick)="openEdit(t)" />
+            @if (canDelete()) {
+              <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small" severity="danger" [ariaLabel]="'Delete task ' + t.code" (onClick)="remove(t)" />
+            }
           </li>
         } @empty { <li class="p-empty">{{ loading() ? 'Loading…' : 'No tasks ' + (status() === 'OPEN' ? 'open ' : '') + 'yet. Create one with "New task".' }}</li> }
       </ul>
@@ -142,6 +145,9 @@ import { ExcelTable } from '../excel-export';
             <td data-label="Status"><p-tag [value]="t.status === 'OPEN' ? 'Open' : 'Closed'" [severity]="t.status === 'OPEN' ? 'success' : 'secondary'" /></td>
             <td class="act stack-end">
               <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" size="small" ariaLabel="Edit task" pTooltip="Edit task" tooltipPosition="left" (onClick)="openEdit(t); $event.stopPropagation()" />
+              @if (canDelete()) {
+                <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small" severity="danger" [ariaLabel]="'Delete task ' + t.code" pTooltip="Delete task" tooltipPosition="left" (onClick)="remove(t); $event.stopPropagation()" />
+              }
             </td>
           </tr>
         </ng-template>
@@ -251,6 +257,7 @@ export class Tasks implements OnInit {
   private readonly staff = inject(StaffService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(MessageService);
+  private readonly confirm = inject(ConfirmationService);
   private readonly router = inject(Router);
 
   protected readonly hrs = hrs;
@@ -281,6 +288,8 @@ export class Tasks implements OnInit {
   });
 
   /** The customer ID links to the customer's page for people with the Customers menu. */
+  /** Deleting tasks (test data) is for owners and admins only, whatever the menu access says; the server checks it too. */
+  protected readonly canDelete = computed(() => this.auth.user()?.role === 'OWNER' || this.auth.user()?.role === 'ADMIN');
   protected readonly canOpenCustomers = computed(() => !!this.auth.access() && this.auth.can('CUSTOMERS'));
   private readonly customers = signal<TaskCustomer[]>([]);
   /** Customers of the task's brand (all of mine for a group-wide task); inactive ones only when already chosen. */
@@ -427,6 +436,32 @@ export class Tasks implements OnInit {
           this.formError.set(Object.values(p.fields)[0] ?? p.message);
         },
       });
+  }
+
+  /** Delete a task for good (test data): first say what goes with it, then delete on confirmation. */
+  protected remove(t: WorkTask): void {
+    this.tasks.deleteCheck(t.id).subscribe({
+      next: (c) => {
+        const goes: string[] = [];
+        if (c.logEntries) goes.push(`${c.logEntries} work log ${c.logEntries === 1 ? 'entry' : 'entries'} (${this.hrs(c.hours)}) by ${c.loggedBy} ${c.loggedBy === 1 ? 'person' : 'people'}`);
+        if (c.goalItems) goes.push(`${c.goalItems} performance goal ${c.goalItems === 1 ? 'item' : 'items'}`);
+        this.confirm.confirm({
+          header: `Delete ${c.code}?`,
+          message: `"${c.title}" will be deleted for good` + (goes.length ? `, together with ${goes.join(' and ')}.` : '.')
+            + ' This cannot be undone. Use it for test data; to stop work on a real task, close it instead.',
+          icon: 'pi pi-trash', acceptLabel: 'Delete task', rejectLabel: 'Keep',
+          acceptButtonProps: { severity: 'danger' }, rejectButtonProps: { outlined: true },
+          accept: () => this.tasks.delete(t.id).subscribe({
+            next: () => {
+              this.toast.add({ severity: 'success', summary: 'Task deleted', detail: `${c.code} · ${c.title}` });
+              this.load();
+            },
+            error: (err) => this.toast.add({ severity: 'error', summary: 'Not deleted', detail: apiProblem(err).message, life: 8000 }),
+          }),
+        });
+      },
+      error: (err) => this.toast.add({ severity: 'error', summary: 'Cannot delete', detail: apiProblem(err).message, life: 8000 }),
+    });
   }
 
   private load(): void {

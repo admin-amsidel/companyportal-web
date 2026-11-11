@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { Component, computed, forwardRef, input, signal } from '@angular/core';
 import { AbstractControl, ControlValueAccessor, NG_VALUE_ACCESSOR, ValidationErrors } from '@angular/forms';
@@ -46,18 +46,31 @@ export function phoneValidator(required = false) {
 }
 
 /**
- * Does a search match one of these phone numbers, however it is typed: "71", "85424", "8542471020", "85424 71020",
- * "+91 85424 71020", "0091…" or with a leading 0. A plain number is looked for in the number without its country code
- * (so "9" does not match every +91 number); one typed with + or 00 is looked for in the whole number.
+ * Does a search match one of these phone numbers? The digits are looked for exactly as typed ("0007" is 0007, never
+ * 7), anywhere in the number: "71", "85424", "8542471020", "85424 71020". Only a whole number is read as one: "+91 85424
+ * 71020" or "0091 85424 71020" (with its country code) and "08542471020" (with the trunk 0). A search with letters
+ * in it (an ID such as "AD0007") is never a phone number. A plain number is looked for in the number without its
+ * country code, so "9" does not match every +91 number.
  */
 export function phoneMatches(query: string, ...phones: (string | null | undefined)[]): boolean {
   const typed = query.trim();
-  const withCode = typed.startsWith('+') || typed.startsWith('00');
-  const q = typed.replace(/\D/g, '').replace(/^0+/, '');
-  if (!q) return false;
+  if (!typed || !/^[\d\s+\-().]+$/.test(typed)) return false;
+  const digits = typed.replace(/\D/g, '');
+  if (!digits) return false;
+  let q = digits;
+  let withCode = typed.startsWith('+');
+  if (!withCode && digits.startsWith('00') && digits.length >= 10) {
+    // 0091 98470 12345: the international prefix of a whole number
+    q = digits.slice(2);
+    withCode = true;
+  } else if (!withCode && digits.length === 11 && digits.startsWith('0')) {
+    // 098470 12345: a whole Indian number with its trunk 0
+    q = digits.slice(1);
+  }
   return phones.some((p) => {
     if (!p) return false;
-    return withCode ? p.replace(/\D/g, '').includes(q) : splitPhone(p).national.includes(q) || (q.length > 10 && p.replace(/\D/g, '').includes(q));
+    const all = p.replace(/\D/g, '');
+    return withCode ? all.includes(q) : splitPhone(p).national.includes(q) || (q.length > 10 && all.includes(q));
   });
 }
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { Component, computed, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';

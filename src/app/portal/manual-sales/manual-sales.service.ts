@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
@@ -37,6 +37,13 @@ export interface ManualTask {
   balance: number | null;
   createdByName: string;
   createdOn: string | null;
+  /** The project it is for (customer, project and agent come from it); null: typed by hand before. */
+  projectId: number | null;
+  projectCode: string | null;
+  /** The Team performance goal it was made for, and that goal's person (the one assignee). */
+  goalId: number | null;
+  goalTitle: string | null;
+  goalEmployeeId: number | null;
 }
 
 /** Dates: a task created or worked on in them. Employee: given to them or logged by them. With either, the amounts count only those. */
@@ -53,6 +60,10 @@ export interface ManualTaskBody {
   agentName: string | null;
   agentPhone: string | null;
   assigneeIds: number[];
+  /** With a project the server takes the customer, project and agent from it. */
+  projectId: number | null;
+  /** With a goal the server makes its person the one assignee. */
+  goalId: number | null;
 }
 
 export interface PersonOption {
@@ -78,6 +89,31 @@ export interface TaskOptions {
   taskCodes: string[];
   /** People with those who have left, for filtering. */
   everyone: PersonOption[];
+  /** My brand's projects, with the customer and agent each fills in. */
+  projectChoices: ProjectChoice[];
+  /** The people whose Team performance goals I may make a task for. */
+  goalPeople: PersonOption[];
+}
+
+export interface ProjectChoice {
+  id: number;
+  code: string;
+  name: string;
+  brandId: number;
+  customerName: string;
+  customerPhone: string | null;
+  agentName: string | null;
+  agentPhone: string | null;
+}
+
+/** A Team performance goal in a review cycle still open. */
+export interface GoalChoice {
+  id: number;
+  title: string;
+  type: string;
+  cycleName: string;
+  startDate: string;
+  endDate: string;
 }
 
 /** kind: which details the status asks for; null for a status with none. */
@@ -218,6 +254,11 @@ export class ManualSalesService {
 
   taskOptions(): Observable<TaskOptions> {
     return this.http.get<TaskOptions>(`${API}/tasks/options`);
+  }
+
+  /** A team member's goals in open review cycles, for a task made for one of them. */
+  goals(employeeId: number): Observable<GoalChoice[]> {
+    return this.http.get<GoalChoice[]>(`${API}/tasks/goals`, { params: { employeeId } });
   }
 
   saveTask(body: ManualTaskBody, id: number | null): Observable<ManualTask> {

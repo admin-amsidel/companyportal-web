@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { Component, computed, effect, inject, input, OnDestroy, OnInit, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -22,7 +22,7 @@ import { AuthService } from '../auth.service';
 import { PhoneInput, phoneMatches, phoneProblem } from '../phone-input';
 import { prepareProfilePhoto } from '../photo.service';
 import { apiProblem } from '../portal.models';
-import { Agent, AgentBrand, AgentsService, moneyIn } from './agents.service';
+import { Agent, AgentBrand, AgentsService, bankProblem, moneyIn } from './agents.service';
 import { ExcelTable } from '../excel-export';
 
 /** An agent's photo, or their initials. */
@@ -107,7 +107,7 @@ export class AgentPhoto implements OnDestroy {
             <th pSortableColumn="name">Agent <p-sortIcon field="name" /></th>
             <th>Phone</th>
             <th pSortableColumn="location">Location <p-sortIcon field="location" /></th>
-            <th>UPI ID</th>
+            <th>UPI / Bank</th>
             @if (canMoney()) {
               <th class="num" pSortableColumn="queued">Queued <p-sortIcon field="queued" /></th>
               <th class="num" pSortableColumn="settled">Settled <p-sortIcon field="settled" /></th>
@@ -128,7 +128,8 @@ export class AgentPhoto implements OnDestroy {
             <td data-label="Phone"><a [href]="'tel:' + a.phone">{{ a.phone }}</a></td>
             <td data-label="Location">{{ a.location ?? '—' }}
               @if (a.address) { <small class="muted block addr">{{ a.address }}</small> }</td>
-            <td data-label="UPI ID">{{ a.upiId ?? '—' }}</td>
+            <td data-label="UPI / Bank">{{ a.upiId ?? (a.bankAccount ? '' : '—') }}
+              @if (a.bankAccount) { <small class="muted block">A/c {{ a.bankAccount }} · {{ a.ifsc }}</small> }</td>
             @if (canMoney()) {
               <td data-label="Queued" class="num"><b [class.owed]="a.queued > 0">{{ money(a.currencySymbol, a.queued ?? 0) }}</b></td>
               <td data-label="Settled" class="num">{{ money(a.currencySymbol, a.settled ?? 0) }}</td>
@@ -175,6 +176,11 @@ export class AgentPhoto implements OnDestroy {
         <div class="pf"><label for="ag-ph">Phone *</label><app-phone-input inputId="ag-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
         <div class="pf"><label for="ag-loc">Location</label><input pInputText id="ag-loc" maxlength="100" placeholder="Town or area" [(ngModel)]="f.location" /></div>
         <div class="pf"><label for="ag-upi">UPI ID</label><input pInputText id="ag-upi" maxlength="80" placeholder="name@bank" [(ngModel)]="f.upiId" /></div>
+        <div class="pf"><label for="ag-acc">Bank account no</label>
+          <input pInputText id="ag-acc" maxlength="20" inputmode="numeric" placeholder="Digits only" [ngModel]="f.bankAccount"
+                 (ngModelChange)="f.bankAccount = $event.replace(/\D/g, '')" /></div>
+        <div class="pf"><label for="ag-ifsc">IFSC</label>
+          <input pInputText id="ag-ifsc" maxlength="11" placeholder="HDFC0001234" [ngModel]="f.ifsc" (ngModelChange)="f.ifsc = $event.toUpperCase()" /></div>
         <div class="pf span"><label for="ag-addr">Address</label>
           <textarea pTextarea id="ag-addr" rows="2" maxlength="500" [autoResize]="true" [(ngModel)]="f.address"></textarea></div>
         <div class="pf span"><label for="ag-notes">Notes</label><input pInputText id="ag-notes" maxlength="500" placeholder="How you know them, for example" [(ngModel)]="f.notes" /></div>
@@ -250,7 +256,7 @@ export class Agents implements OnInit {
     const q = this.query().trim().toLowerCase();
     const status = this.status();
     return this.rows().filter((a) =>
-      (!q || [a.name, a.code, a.location, a.upiId, a.address].some((v) => v?.toLowerCase().includes(q)) || phoneMatches(q, a.phone))
+      (!q || [a.name, a.code, a.location, a.upiId, a.address, a.bankAccount, a.ifsc].some((v) => v?.toLowerCase().includes(q)) || phoneMatches(q, a.phone))
       && (status === 'ALL' || a.active === (status === 'ACTIVE')));
   });
 
@@ -290,7 +296,7 @@ export class Agents implements OnInit {
     this.photo = null;
     this.photoRemoved.set(false);
     this.f = a
-      ? { brandId: a.brandId, name: a.name, phone: a.phone, address: a.address ?? '', location: a.location ?? '', upiId: a.upiId ?? '', notes: a.notes ?? '', active: a.active }
+      ? { brandId: a.brandId, name: a.name, phone: a.phone, address: a.address ?? '', location: a.location ?? '', upiId: a.upiId ?? '', bankAccount: a.bankAccount ?? '', ifsc: a.ifsc ?? '', notes: a.notes ?? '', active: a.active }
       : blank(this.brandId() ?? (this.brands().length === 1 ? this.brands()[0].id : null));
     this.formOpen.set(true);
   }
@@ -327,10 +333,12 @@ export class Agents implements OnInit {
     if (!this.f.name.trim()) return this.formError.set('Give the name.');
     const phone = phoneProblem(this.f.phone, true);
     if (phone) return this.formError.set('Phone: ' + phone);
+    const bank = bankProblem(this.f.bankAccount, this.f.ifsc);
+    if (bank) return this.formError.set(bank);
     this.busy.set(true);
     const e = this.editing();
     const body = {
-      ...this.f, name: this.f.name.trim(), address: this.f.address.trim(), location: this.f.location.trim(), upiId: this.f.upiId.trim(), notes: this.f.notes.trim(),
+      ...this.f, name: this.f.name.trim(), address: this.f.address.trim(), location: this.f.location.trim(), upiId: this.f.upiId.trim(), bankAccount: this.f.bankAccount.trim(), ifsc: this.f.ifsc.trim(), notes: this.f.notes.trim(),
     };
     this.api.save(e?.id ?? null, body).subscribe({
       next: (a) => this.savePhoto(a, e),
@@ -361,5 +369,5 @@ export class Agents implements OnInit {
 }
 
 function blank(brandId: number | null) {
-  return { brandId, name: '', phone: '', address: '', location: '', upiId: '', notes: '', active: true };
+  return { brandId, name: '', phone: '', address: '', location: '', upiId: '', bankAccount: '', ifsc: '', notes: '', active: true };
 }

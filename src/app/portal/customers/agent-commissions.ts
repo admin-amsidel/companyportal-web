@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
@@ -186,6 +186,7 @@ function groupOf(view: View, c: Commission): { key: string; label: string; sub: 
               [style]="{ width: '520px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false" appendTo="body">
       @if (editing(); as c) {
         <p class="line"><b>{{ money(c.currencySymbol, c.amount) }}</b> to {{ c.agentName }}{{ c.agentUpi ? ' (' + c.agentUpi + ')' : '' }}
+          @if (c.agentBankAccount) { <small class="block">Bank: A/c {{ c.agentBankAccount }} · IFSC {{ c.agentIfsc }}</small> }
           <small class="muted block">{{ c.projectCode }} · {{ c.projectName }}</small></p>
         <div class="grid">
           <div class="pf span"><label for="cs-status">Status *</label>

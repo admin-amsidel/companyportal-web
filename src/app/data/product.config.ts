@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 
 /**
@@ -10,7 +10,7 @@
 export const PRODUCT = {
   name: 'Company Portal',
   tagline: 'People • Operations • Sales • Customers',
-  vendor: 'AMSIDEL Technologies',
+  vendor: 'IANEL Technologies',
   /** "Request a demo" and "Contact sales" open a mail to this address. */
   salesEmail: '',
   /** Shown in the support section; digits, spaces and + only. */

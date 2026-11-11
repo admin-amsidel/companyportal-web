@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -19,18 +19,19 @@ import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { AuthService } from '../auth.service';
 import { apiProblem, toIsoDate } from '../portal.models';
-import { ManualSalesService, ManualTask, moneyText, TaskFilter, TaskOptions } from './manual-sales.service';
-import { PhoneInput, phoneProblem } from '../phone-input';
+import { CheckboxModule } from 'primeng/checkbox';
+import { GoalChoice, ManualSalesService, ManualTask, moneyText, TaskFilter, TaskOptions } from './manual-sales.service';
 
 type Period = 'ALL' | 'MONTH' | 'DATES';
 
 /**
- * Manual Sales worklog tasks, for brands without the product portal: who works on what, with the customer, project and agent
- * typed by hand. People log these in their work log, where each entry asks for the status and the sales details.
+ * Manual Sales worklog tasks, for brands without the product portal: who works on what, for which project (its customer and
+ * agent come with it), and optionally for a team member's Team performance goal (then they alone are assigned). People log
+ * these in their work log, where each entry asks for the status and the sales details.
  */
 @Component({
   selector: 'app-manual-sales-tasks',
-  imports: [PhoneInput, FormsModule, ButtonModule, DatePickerModule, DialogModule, IconFieldModule, InputIconModule, InputTextModule, MessageModule, MultiSelectModule, SelectModule, TableModule, TagModule, TextareaModule],
+  imports: [CheckboxModule, FormsModule, ButtonModule, DatePickerModule, DialogModule, IconFieldModule, InputIconModule, InputTextModule, MessageModule, MultiSelectModule, SelectModule, TableModule, TagModule, TextareaModule],
   template: `
     <div class="p-head">
       <div>
@@ -101,31 +102,50 @@ type Period = 'ALL' | 'MONTH' | 'DATES';
     <p-dialog [visible]="open()" (visibleChange)="!$event && open.set(false)" [modal]="true" [draggable]="false" [style]="{ width: '640px' }" [breakpoints]="{ '700px': 'calc(100vw - 16px)' }"
               [header]="editing() ? 'Edit ' + editing()!.code : 'New manual sales task'">
       <div class="form">
+        @if (options()?.goalPeople?.length) {
+          <div class="pf span check"><p-checkbox inputId="ms-perf" [binary]="true" [ngModel]="fromGoal()" (ngModelChange)="setFromGoal($event)" />
+            <label for="ms-perf">Choose from Team performance <span class="muted">(a task for a team member's goal)</span></label></div>
+          @if (fromGoal()) {
+            <div class="pf"><label for="ms-gperson">Employee *</label>
+              <p-select inputId="ms-gperson" [options]="goalPeopleOptions()" optionLabel="label" optionValue="value" [filter]="true" placeholder="Whose goal"
+                        appendTo="body" [ngModel]="goalPersonId()" (ngModelChange)="setGoalPerson($event)" /></div>
+            <div class="pf"><label for="ms-goal">Goal *</label>
+              <p-select inputId="ms-goal" [options]="goalOptions()" optionLabel="label" optionValue="value" [filter]="true" appendTo="body"
+                        [placeholder]="goalPersonId() ? (goalsLoading() ? 'Loading…' : 'Choose the goal') : 'Choose the employee first'"
+                        [emptyMessage]="goalsLoading() ? 'Loading…' : 'No goals in an open review cycle'" [disabled]="!goalPersonId()"
+                        [ngModel]="goalId()" (ngModelChange)="pickGoal($event)" /></div>
+          }
+        }
         <div class="pf span"><label for="ms-title">Title *</label>
-          <input pInputText id="ms-title" maxlength="200" [ngModel]="title()" (ngModelChange)="title.set($event)" /></div>
+          <input pInputText id="ms-title" maxlength="200" [readonly]="titleFromGoal()" [class.ro]="titleFromGoal()"
+                 [ngModel]="title()" (ngModelChange)="title.set($event)" />
+          @if (titleFromGoal()) { <small class="muted">The goal's name; untick Team performance to type your own.</small> }</div>
         @if (options()?.brands?.length) {
           <div class="pf"><label for="ms-brand">Brand</label>
-            <p-select inputId="ms-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="brandId()" (ngModelChange)="setBrand($event)" /></div>
+            <p-select inputId="ms-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" appendTo="body" [disabled]="brandFromGoal()"
+                      [ngModel]="brandId()" (ngModelChange)="setBrand($event)" />
+            @if (brandFromGoal()) { <small class="muted">The employee's brand.</small> }</div>
         }
         <div class="pf"><label for="ms-status">Status</label>
           <p-select inputId="ms-status" [options]="openClosed" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="status()" (ngModelChange)="status.set($event)" /></div>
-        <div class="pf"><label for="ms-cust">Customer</label>
-          <input pInputText id="ms-cust" list="ms-customers" maxlength="150" [ngModel]="customerName()" (ngModelChange)="customerName.set($event)" />
-          <datalist id="ms-customers">@for (c of options()?.customers ?? []; track c) { <option [value]="c"></option> }</datalist></div>
-        <div class="pf"><label for="ms-cphone">Customer phone</label>
-          <app-phone-input inputId="ms-cphone" label="customer phone" [ngModel]="customerPhone()" (ngModelChange)="customerPhone.set($event ?? '')" /></div>
         <div class="pf span"><label for="ms-proj">Project</label>
-          <input pInputText id="ms-proj" list="ms-projects" maxlength="150" [ngModel]="projectName()" (ngModelChange)="projectName.set($event)" />
-          <datalist id="ms-projects">@for (c of options()?.projects ?? []; track c) { <option [value]="c"></option> }</datalist></div>
+          <p-select inputId="ms-proj" [options]="projectOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label,customer" [showClear]="true"
+                    placeholder="Choose the project" emptyMessage="No projects for this brand" appendTo="body" [ngModel]="projectId()" (ngModelChange)="setProject($event)" />
+          @if (!projectId() && projectName()) { <small class="muted">Typed by hand before: {{ projectName() }}. Choose its project to link it.</small> }</div>
+        <div class="pf"><label for="ms-cust">Customer</label>
+          <input pInputText id="ms-cust" readonly class="ro" placeholder="From the project" [value]="customerName()" /></div>
+        <div class="pf"><label for="ms-cphone">Customer phone</label>
+          <input pInputText id="ms-cphone" readonly class="ro" placeholder="From the project" [value]="customerPhone()" /></div>
         <div class="pf"><label for="ms-agent">Agent</label>
-          <input pInputText id="ms-agent" list="ms-agents" maxlength="150" [ngModel]="agentName()" (ngModelChange)="agentName.set($event)" />
-          <datalist id="ms-agents">@for (c of options()?.agents ?? []; track c) { <option [value]="c"></option> }</datalist></div>
+          <input pInputText id="ms-agent" readonly class="ro" [placeholder]="projectId() ? 'No agent on this project' : 'From the project'" [value]="agentName()" /></div>
         <div class="pf"><label for="ms-aphone">Agent phone</label>
-          <app-phone-input inputId="ms-aphone" label="agent phone" [ngModel]="agentPhone()" (ngModelChange)="agentPhone.set($event ?? '')" /></div>
+          <input pInputText id="ms-aphone" readonly class="ro" placeholder="From the project" [value]="agentPhone()" /></div>
         <div class="pf span"><label for="ms-who">Assigned to</label>
           <p-multiselect inputId="ms-who" [options]="peopleOptions()" optionLabel="label" optionValue="value" [filter]="true" filterPlaceHolder="Search people" placeholder="Choose people"
-                         display="chip" [maxSelectedLabels]="4" selectedItemsLabel="{0} people" appendTo="body" [ngModel]="assigneeIds()" (ngModelChange)="assigneeIds.set($event ?? [])" />
-          <small class="muted">They also need the Manual Sales worklog tick in Menu access, or the task is not offered to them.</small></div>
+                         display="chip" [maxSelectedLabels]="4" selectedItemsLabel="{0} people" appendTo="body" [disabled]="fromGoal()"
+                         [ngModel]="assigneeIds()" (ngModelChange)="assigneeIds.set($event ?? [])" />
+          @if (fromGoal()) { <small class="muted">A task for a goal is that employee's alone.</small> }
+          @else { <small class="muted">They also need the Manual Sales worklog tick in Menu access, or the task is not offered to them.</small> }</div>
         <div class="pf span"><label for="ms-desc">Description</label>
           <textarea pTextarea id="ms-desc" rows="2" maxlength="2000" [ngModel]="description()" (ngModelChange)="description.set($event)"></textarea></div>
       </div>
@@ -152,6 +172,9 @@ type Period = 'ALL' | 'MONTH' | 'DATES';
     .form input, .form textarea { width: 100%; }
     :host ::ng-deep .form .p-select, :host ::ng-deep .form .p-multiselect { width: 100%; }
     :host ::ng-deep .msg { margin-top: 12px; }
+    .check { display: flex; align-items: center; gap: 10px; }
+    .check label { margin: 0; font-weight: 600; }
+    .ro { background: var(--accent-softer, #f6f4ff); color: var(--ink); cursor: default; }
     @media (max-width: 760px) {
       .num { text-align: left; }
       .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -213,6 +236,18 @@ export class ManualSalesTasks implements OnInit {
   protected readonly agentName = signal('');
   protected readonly agentPhone = signal('');
   protected readonly assigneeIds = signal<number[]>([]);
+  protected readonly projectId = signal<number | null>(null);
+  /** Made for a Team performance goal: the employee, their goals (open cycles) and the one chosen. */
+  protected readonly fromGoal = signal(false);
+  protected readonly goalPersonId = signal<number | null>(null);
+  protected readonly goals = signal<GoalChoice[]>([]);
+  protected readonly goalsLoading = signal(false);
+  protected readonly goalId = signal<number | null>(null);
+  /** A task for a goal is called after the goal: the title is not typed then. */
+  protected readonly titleFromGoal = computed(() => this.fromGoal() && !!this.goalId());
+  /** The goal's employee, and their brand, which the task takes (null: the employee has none). */
+  private readonly goalPerson = computed(() => (this.options()?.goalPeople ?? []).find((p) => p.id === this.goalPersonId()) ?? null);
+  protected readonly brandFromGoal = computed(() => this.fromGoal() && !!this.goalPerson()?.brandId);
   protected readonly formError = signal('');
   protected readonly busy = signal(false);
 
@@ -229,6 +264,18 @@ export class ManualSalesTasks implements OnInit {
     return (this.options()?.people ?? []).filter((p) => !brand || p.brandId === brand || chosen.has(p.id))
       .map((p) => ({ value: p.id, label: p.name + (p.brandCode ? ` (${p.brandCode})` : '') }));
   });
+
+  /** My brand's projects (the task's brand's, when it has one). */
+  protected readonly projectOptions = computed(() => {
+    const brand = this.brandId();
+    return (this.options()?.projectChoices ?? []).filter((p) => !brand || p.brandId === brand || p.id === this.projectId())
+      .map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, customer: `${p.customerName} ${p.customerPhone ?? ''}` }));
+  });
+  /** All my team: the task then takes the chosen employee's brand. */
+  protected readonly goalPeopleOptions = computed(() =>
+    (this.options()?.goalPeople ?? []).map((p) => ({ value: p.id, label: p.name + (p.brandCode ? ` (${p.brandCode})` : '') })));
+  protected readonly goalOptions = computed(() =>
+    this.goals().map((g) => ({ value: g.id, label: `${g.title} · ${goalType(g.type)} · ${g.cycleName}` })));
 
   ngOnInit(): void {
     this.load();
@@ -355,6 +402,56 @@ export class ManualSalesTasks implements OnInit {
     }
   }
 
+  /** The project fills the customer and agent (none: left empty); cleared, they go too. */
+  protected setProject(id: number | null): void {
+    this.projectId.set(id);
+    const p = (this.options()?.projectChoices ?? []).find((x) => x.id === id);
+    this.projectName.set(p?.name ?? '');
+    this.customerName.set(p?.customerName ?? '');
+    this.customerPhone.set(p?.customerPhone ?? '');
+    this.agentName.set(p?.agentName ?? '');
+    this.agentPhone.set(p?.agentPhone ?? '');
+    if (p && this.brandId() !== p.brandId) this.setBrand(p.brandId);
+  }
+
+  /** The goal names the task. */
+  protected pickGoal(id: number | null): void {
+    this.goalId.set(id);
+    const g = this.goals().find((x) => x.id === id);
+    if (g) this.title.set(g.title);
+  }
+
+  protected setFromGoal(on: boolean): void {
+    this.fromGoal.set(on);
+    if (!on) {
+      // back to choosing people by hand, starting from whoever was assigned
+      this.goalPersonId.set(null);
+      this.goalId.set(null);
+      this.goals.set([]);
+    }
+  }
+
+  /** The employee whose goal it is: their goals load, and they become the one assignee. */
+  protected setGoalPerson(id: number | null, keepGoal: number | null = null): void {
+    this.goalPersonId.set(id);
+    this.goalId.set(keepGoal);
+    this.goals.set([]);
+    this.assigneeIds.set(id ? [id] : []);
+    if (!id) return;
+    // the task takes the employee's brand; a project of another brand goes
+    const brand = this.goalPerson()?.brandId ?? null;
+    if (brand && this.brandId() !== brand) {
+      this.brandId.set(brand);
+      const project = (this.options()?.projectChoices ?? []).find((x) => x.id === this.projectId());
+      if (project && project.brandId !== brand) this.setProject(null);
+    }
+    this.goalsLoading.set(true);
+    this.api.goals(id).subscribe({
+      next: (g) => { this.goals.set(g); this.goalsLoading.set(false); },
+      error: (e) => { this.goalsLoading.set(false); this.formError.set(apiProblem(e).message); },
+    });
+  }
+
   protected edit(t: ManualTask | null): void {
     this.editing.set(t);
     this.title.set(t?.title ?? '');
@@ -367,23 +464,29 @@ export class ManualSalesTasks implements OnInit {
     this.agentName.set(t?.agentName ?? '');
     this.agentPhone.set(t?.agentPhone ?? '');
     this.assigneeIds.set(t?.assignees.map((a) => a.id) ?? []);
+    this.projectId.set(t?.projectId ?? null);
+    this.fromGoal.set(!!t?.goalId);
+    this.goals.set([]);
+    this.goalPersonId.set(null);
+    this.goalId.set(null);
+    if (t?.goalId && t.goalEmployeeId) this.setGoalPerson(t.goalEmployeeId, t.goalId);
     this.formError.set('');
     this.open.set(true);
   }
 
   protected save(): void {
     if (!this.title().trim()) return this.formError.set('Give the task a title.');
-    const customerPhoneProblem = phoneProblem(this.customerPhone());
-    if (customerPhoneProblem) return this.formError.set('Customer phone: ' + customerPhoneProblem);
-    const agentPhoneProblem = phoneProblem(this.agentPhone());
-    if (agentPhoneProblem) return this.formError.set('Agent phone: ' + agentPhoneProblem);
+    if (this.fromGoal() && !this.goalPersonId()) return this.formError.set('Choose the employee whose goal it is.');
+    if (this.fromGoal() && !this.goalId()) return this.formError.set('Choose the goal.');
     const t = this.editing();
     this.busy.set(true);
     this.formError.set('');
     this.api.saveTask({
       title: this.title().trim(), description: this.description().trim() || null, status: this.status(), brandId: this.brandId(),
       customerName: this.customerName().trim() || null, customerPhone: this.customerPhone().trim() || null, projectName: this.projectName().trim() || null,
-      agentName: this.agentName().trim() || null, agentPhone: this.agentPhone().trim() || null, assigneeIds: this.assigneeIds(),
+      agentName: this.agentName().trim() || null, agentPhone: this.agentPhone().trim() || null,
+      assigneeIds: this.fromGoal() && this.goalPersonId() ? [this.goalPersonId()!] : this.assigneeIds(),
+      projectId: this.projectId(), goalId: this.fromGoal() ? this.goalId() : null,
     }, t?.id ?? null).subscribe({
       next: (saved) => {
         this.busy.set(false);
@@ -399,4 +502,8 @@ export class ManualSalesTasks implements OnInit {
       },
     });
   }
+}
+
+function goalType(type: string): string {
+  return { GENERAL: 'General', SALES: 'Sales', SALES_ORDER: 'Sales orders', MANUAL_SALES: 'Manual sales' }[type] ?? type;
 }

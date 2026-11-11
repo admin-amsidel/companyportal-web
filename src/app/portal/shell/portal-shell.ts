@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2026 AMSIDEL Technologies. All rights reserved.
- * Designed and developed by AMSIDEL Technologies.
+ * Copyright (c) 2026 IANEL Technologies. All rights reserved.
+ * Designed and developed by IANEL Technologies.
  */
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, DestroyRef, effect, inject, signal, untracked, ViewEncapsulation } from '@angular/core';
@@ -50,6 +50,12 @@ const SIDEBAR_KEY = 'companyportal.portal.sidebar';
 type Section = 'EMPLOYEE' | 'PRODUCT' | 'CUSTOMER';
 const SECTION_ROOTS: [Section, string][] = [['PRODUCT', '/portal/products'], ['CUSTOMER', '/portal/customers']];
 const SECTION_LABELS: Record<Section, string> = { EMPLOYEE: 'Employee portal', PRODUCT: 'Product portal', CUSTOMER: 'Project portal' };
+/** One name and icon per portal, for the top bar (full name) and the phone menu (short name), so the two never differ. */
+const SECTION_LOOK: Record<Section, { short: string; icon: string }> = {
+  EMPLOYEE: { short: 'Employee', icon: 'pi-users' },
+  PRODUCT: { short: 'Product', icon: 'pi-box' },
+  CUSTOMER: { short: 'Project', icon: 'pi-briefcase' },
+};
 
 function sectionOf(path: string): Section {
   const p = path.split(/[?#]/)[0];
@@ -87,15 +93,9 @@ function sectionOf(path: string): Section {
       </a>
       @if (hasSections()) {
         <nav class="p-switch" aria-label="Portal section">
-          <a [routerLink]="employeeStart()" [class.on]="section() === 'EMPLOYEE'" [attr.aria-current]="section() === 'EMPLOYEE' ? 'page' : null">
-            <i class="pi pi-users" aria-hidden="true"></i><span>Employee portal</span></a>
-          @if (productStart(); as start) {
-            <a [routerLink]="start" [class.on]="section() === 'PRODUCT'" [attr.aria-current]="section() === 'PRODUCT' ? 'page' : null">
-              <i class="pi pi-box" aria-hidden="true"></i><span>Product portal</span></a>
-          }
-          @if (customerStart(); as start) {
-            <a [routerLink]="start" [class.on]="section() === 'CUSTOMER'" [attr.aria-current]="section() === 'CUSTOMER' ? 'page' : null">
-              <i class="pi pi-briefcase" aria-hidden="true"></i><span>Project portal</span></a>
+          @for (t of sectionTabs(); track t.key) {
+            <a [routerLink]="t.start" [class.on]="section() === t.key" [attr.aria-current]="section() === t.key ? 'page' : null">
+              <i class="pi {{ look[t.key].icon }}" aria-hidden="true"></i><span>{{ sectionLabels[t.key] }}</span></a>
           }
         </nav>
       }
@@ -167,15 +167,10 @@ function sectionOf(path: string): Section {
     <ng-template #tree let-mini="mini" let-drawer="drawer">
       @if (drawer && hasSections()) {
         <div class="dr-switch" role="group" aria-label="Portal section">
-          <a [routerLink]="employeeStart()" [class.on]="section() === 'EMPLOYEE'" (click)="drawerOpen.set(false)">
-            <i class="pi pi-users" aria-hidden="true"></i> Employee</a>
-          @if (productStart(); as start) {
-            <a [routerLink]="start" [class.on]="section() === 'PRODUCT'" (click)="drawerOpen.set(false)">
-              <i class="pi pi-box" aria-hidden="true"></i> Products</a>
-          }
-          @if (customerStart(); as start) {
-            <a [routerLink]="start" [class.on]="section() === 'CUSTOMER'" (click)="drawerOpen.set(false)">
-              <i class="pi pi-address-book" aria-hidden="true"></i> Customers</a>
+          @for (t of sectionTabs(); track t.key) {
+            <a [routerLink]="t.start" [class.on]="section() === t.key" [attr.aria-current]="section() === t.key ? 'page' : null"
+               [attr.aria-label]="sectionLabels[t.key]" (click)="drawerOpen.set(false)">
+              <i class="pi {{ look[t.key].icon }}" aria-hidden="true"></i> {{ look[t.key].short }}</a>
           }
         </div>
       }
@@ -417,6 +412,16 @@ export class PortalShell {
   protected readonly customerStart = computed(() => this.menuPaths().find((p) => sectionOf(p) === 'CUSTOMER') ?? null);
   /** The switch shows when I have a portal besides the employee one. */
   protected readonly hasSections = computed(() => !!this.productStart() || !!this.customerStart());
+  protected readonly look = SECTION_LOOK;
+  /** The portals I may open, in order, with the page each opens on (the employee portal always). */
+  protected readonly sectionTabs = computed(() => {
+    const tabs: { key: Section; start: string }[] = [{ key: 'EMPLOYEE', start: this.employeeStart() }];
+    const product = this.productStart();
+    const customer = this.customerStart();
+    if (product) tabs.push({ key: 'PRODUCT', start: product });
+    if (customer) tabs.push({ key: 'CUSTOMER', start: customer });
+    return tabs;
+  });
 
   /**
    * The menus this person may open in the current section, from menu access (the menus table, in its order); a
