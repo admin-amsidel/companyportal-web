@@ -88,7 +88,7 @@ function sectionOf(path: string): Section {
                   (onClick)="toggleCollapsed()" />
       }
       <a class="p-mark" routerLink="/portal/home">
-        <img src="brand/logo-mark.svg" alt="" width="30" height="30" />
+        <img src="brand/logo-mark.png" alt="" width="30" height="30" />
         <span>Company Portal</span>
       </a>
       @if (hasSections()) {

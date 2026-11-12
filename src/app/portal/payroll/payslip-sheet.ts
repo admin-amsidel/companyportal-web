@@ -167,7 +167,7 @@ export class PayslipSheet {
   /** The brand's logo, or the group logo. */
   protected readonly logo = computed(() => {
     const c = this.payslip().company;
-    return (c.brandId && brandLogoUrl(c.brandId, c.logoUpdatedAt, API_BASE)) || 'brand/logo-mark.svg';
+    return (c.brandId && brandLogoUrl(c.brandId, c.logoUpdatedAt, API_BASE)) || 'brand/logo-mark.png';
   });
   protected readonly lopDays = computed(() => this.lop() ?? this.payslip().lopDays);
   protected readonly workingDays = computed(() => this.days() ?? this.payslip().workingDays);

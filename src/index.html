@@ -14,13 +14,13 @@
   <meta property="og:title" content="Company Portal">
   <meta property="og:description" content="One platform to manage people, work & business: employees, attendance, payroll, products, sales, customers and agents.">
   <meta property="og:image" content="images/hero-team.webp">
-  <link rel="icon" type="image/svg+xml" href="brand/logo-mark.svg">
+  <link rel="icon" type="image/png" href="brand/logo-mark.png">
   <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="brand/logo-mark-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
-  <link rel="preload" as="image" href="brand/logo-mark.svg">
+  <link rel="preload" as="image" href="brand/loader-sprite.png">
   <!-- Page loader: inline so it shows before the app downloads; App hides it (see app.ts). -->
   <style>
     #app-loader {
@@ -32,66 +32,94 @@
     /* during saves and refreshes inside a page: the page stays visible behind the logo */
     #app-loader.is-busy { background: rgba(255, 255, 255, .72); cursor: progress; }
     #app-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .45s ease, visibility 0s .45s; }
-    .ldr { position: relative; width: 156px; height: 156px; display: grid; place-items: center; }
-    /* soft violet glow that breathes behind the logo */
-    .ldr::before {
-      content: ""; position: absolute; inset: -18px; border-radius: 50%;
-      background: radial-gradient(closest-side, rgba(139, 92, 246, .38), rgba(139, 92, 246, 0));
-      animation: ldr-glow 2.4s ease-in-out infinite;
+    /* The IANEL cloud, in layers from one sprite (brand/loader-sprite.png, 8 frames top to bottom): 0 the cloud and its
+       gold wave, 1 the network of nodes, 2-7 the data squares. The cloud floats with a gold shine passing over it, the
+       network draws itself left to right, and the squares fly in one after another, as data going up into the cloud. */
+    .ldr { position: relative; width: 184px; display: grid; place-items: center; }
+    .ldr__glow {
+      position: absolute; inset: -22px -10px; border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(234, 179, 8, .26), rgba(234, 179, 8, 0));
+      animation: ldr-glow 2.6s ease-in-out infinite;
     }
-    .ldr__disc {
-      position: relative; z-index: 1; width: 118px; height: 118px; border-radius: 50%;
-      display: grid; place-items: center; background: #fff;
-      box-shadow: 0 10px 30px rgba(42, 31, 107, .14), inset 0 0 0 1px #e9e5fb;
+    .ldr__mark { position: relative; width: 100%; aspect-ratio: 3 / 2; animation: ldr-float 2.6s ease-in-out infinite; }
+    .ldr__l, .ldr__base::after {
+      position: absolute; inset: 0;
+      background: url(brand/loader-sprite.png) 0 calc(var(--f) * 100% / 7) / 100% 800% no-repeat;
     }
-    .ldr__disc img { width: 54%; height: auto; }
-    /* aura rings: a violet arc sweeping forward then back, and a thin orange arc going the other way */
-    .ldr__aura {
-      position: absolute; inset: 0; border-radius: 50%;
-      background: conic-gradient(from 0deg, rgba(106, 75, 240, 0) 0 50%, rgba(106, 75, 240, .35) 70%, #8b5cf6 88%, #4f46e5 100%);
-      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
-              mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
-      animation: ldr-sweep 1.6s cubic-bezier(.65, 0, .35, 1) infinite alternate;
+    .ldr__base { --f: 0; }
+    /* a band of light crossing the cloud, kept inside its shape by the cloud's own frame as a mask */
+    .ldr__base::after {
+      content: "";
+      background: linear-gradient(105deg, rgba(255, 255, 255, 0) 38%, rgba(255, 247, 220, .9) 50%, rgba(255, 255, 255, 0) 62%) 100% 0 / 300% 100% no-repeat;
+      -webkit-mask: url(brand/loader-sprite.png) 0 0 / 100% 800% no-repeat;
+              mask: url(brand/loader-sprite.png) 0 0 / 100% 800% no-repeat;
+      animation: ldr-shine 2.6s ease-in-out infinite;
     }
-    .ldr__aura--back {
-      inset: 10px;
-      background: conic-gradient(from 180deg, rgba(249, 115, 22, 0) 0 60%, rgba(249, 115, 22, .3) 80%, #f97316 100%);
-      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-              mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-      animation-name: ldr-sweep-back;
+    .ldr__net { --f: 1; animation: ldr-draw 2.6s ease-in-out infinite; }
+    .ldr__bit {
+      transform-origin: var(--ox) var(--oy);
+      animation: ldr-bit 2.6s cubic-bezier(.2, .8, .2, 1) var(--d) infinite both;
+    }
+    .ldr__shadow {
+      width: 58%; height: 10px; margin-top: 6px; border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(31, 33, 38, .22), rgba(31, 33, 38, 0));
+      animation: ldr-shadow 2.6s ease-in-out infinite;
     }
     .ldr__name {
       margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: 14px;
-      letter-spacing: .32em; text-indent: .32em; color: #5a3ad9; text-transform: uppercase;
+      letter-spacing: .32em; text-indent: .32em; text-transform: uppercase;
+      color: #2b2d33;
+      background: linear-gradient(90deg, #2b2d33 0 40%, #d4a017 50%, #2b2d33 60% 100%) 100% 0 / 300% 100%;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      animation: ldr-shine 2.6s ease-in-out infinite;
     }
-    @keyframes ldr-sweep { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-    @keyframes ldr-sweep-back { from { transform: rotate(0); } to { transform: rotate(-360deg); } }
-    @keyframes ldr-glow { 0%, 100% { opacity: .35; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.05); } }
-    /* phones: a smaller ring and logo */
+    @keyframes ldr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes ldr-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.82); opacity: .55; } }
+    @keyframes ldr-glow { 0%, 100% { opacity: .45; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.04); } }
+    @keyframes ldr-shine { 0%, 15% { background-position: 100% 0; } 75%, 100% { background-position: 0 0; } }
+    @keyframes ldr-draw {
+      0% { clip-path: inset(0 74% 0 0); opacity: 1; }
+      38%, 86% { clip-path: inset(0 0 0 0); opacity: 1; }
+      100% { clip-path: inset(0 0 0 0); opacity: 0; }
+    }
+    @keyframes ldr-bit {
+      0%, 12% { opacity: 0; transform: translate(-7%, 7%) scale(.2); }
+      34% { opacity: 1; transform: none; }
+      84% { opacity: 1; transform: none; }
+      100% { opacity: 0; transform: translate(3%, -4%) scale(.6); }
+    }
+    /* phones: a smaller cloud */
     @media (max-width: 560px) {
-      #app-loader { gap: 16px; }
-      .ldr { width: 124px; height: 124px; }
-      .ldr::before { inset: -14px; }
-      .ldr__disc { width: 94px; height: 94px; }
-      .ldr__aura { -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); }
-      .ldr__aura--back { inset: 8px; -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); }
+      #app-loader { gap: 14px; }
+      .ldr { width: 144px; }
       .ldr__name { font-size: 12px; }
     }
+    /* reduced motion: the whole cloud stands still; only the glow breathes */
     @media (prefers-reduced-motion: reduce) {
-      .ldr__aura { animation-duration: 4s; }
-      .ldr::before { animation: none; opacity: .6; }
+      .ldr__mark, .ldr__net, .ldr__bit, .ldr__shadow, .ldr__base::after, .ldr__name { animation: none; }
+      .ldr__base::after { display: none; }
+      .ldr__name { -webkit-text-fill-color: #2b2d33; }
     }
     /* nothing animates while the loader is hidden */
-    #app-loader.is-hidden *, #app-loader.is-hidden *::before { animation-play-state: paused; }
+    #app-loader.is-hidden *, #app-loader.is-hidden *::before, #app-loader.is-hidden *::after { animation-play-state: paused; }
   </style>
   <noscript><style>#app-loader { display: none; }</style></noscript>
 </head>
 <body>
   <div id="app-loader" role="status" aria-live="polite">
-    <div class="ldr">
-      <span class="ldr__aura"></span>
-      <span class="ldr__aura ldr__aura--back"></span>
-      <span class="ldr__disc"><img src="brand/logo-mark.svg" alt="" width="64" height="64"></span>
+    <div class="ldr" aria-hidden="true">
+      <span class="ldr__glow"></span>
+      <span class="ldr__mark">
+        <i class="ldr__l ldr__base"></i>
+        <i class="ldr__l ldr__net"></i>
+        <i class="ldr__l ldr__bit" style="--f:2;--ox:72.9%;--oy:42.5%;--d:0s"></i>
+        <i class="ldr__l ldr__bit" style="--f:3;--ox:81%;--oy:40%;--d:.09s"></i>
+        <i class="ldr__l ldr__bit" style="--f:4;--ox:89.1%;--oy:37.6%;--d:.18s"></i>
+        <i class="ldr__l ldr__bit" style="--f:5;--ox:85.8%;--oy:27.4%;--d:.27s"></i>
+        <i class="ldr__l ldr__bit" style="--f:6;--ox:92.9%;--oy:28.9%;--d:.36s"></i>
+        <i class="ldr__l ldr__bit" style="--f:7;--ox:94.7%;--oy:19.1%;--d:.45s"></i>
+      </span>
+      <span class="ldr__shadow"></span>
     </div>
     <p class="ldr__name">Company Portal</p>
     <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Loading…</span>

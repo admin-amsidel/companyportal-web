@@ -2,7 +2,7 @@
 <header class="top" [class.top--open]="menuOpen()">
   <div class="wrap top__bar">
     <a class="logo" routerLink="/" (click)="closeMenu()" aria-label="{{ product.name }} home">
-      <img src="brand/logo-mark.svg" alt="" width="44" height="44" />
+      <img src="brand/logo-mark.png" alt="" width="44" height="44" />
       <span class="logo__text">
         <b>{{ product.name }}</b>
         <small>{{ product.tagline }}</small>
@@ -155,7 +155,7 @@
         <div class="preview__bar"><i></i><i></i><i></i><span>companyportal / dashboard</span></div>
         <div class="preview__body">
           <div class="preview__side">
-            <img src="brand/logo-mark.svg" alt="" width="26" height="26" />
+            <img src="brand/logo-mark.png" alt="" width="26" height="26" />
             @for (m of modules.slice(0, 6); track m.title) {
               <span class="tone--{{ m.tone }}"><cp-icon [name]="m.icon" [stroke]="1.8" /></span>
             }
@@ -238,7 +238,7 @@
 <footer class="foot">
   <div class="wrap foot__row">
     <a class="logo logo--small" routerLink="/" fragment="top">
-      <img src="brand/logo-mark.svg" alt="" width="32" height="32" />
+      <img src="brand/logo-mark.png" alt="" width="32" height="32" />
       <span class="logo__text"><b>{{ product.name }}</b></span>
     </a>
     <nav class="foot__links" aria-label="Footer">

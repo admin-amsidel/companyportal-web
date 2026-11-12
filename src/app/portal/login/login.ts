@@ -24,7 +24,7 @@ import { CREDITS } from '../../shared/credits';
       <section class="panel panel--brand">
         <a class="back" routerLink="/"><span aria-hidden="true">←</span> Company Portal home</a>
         <div class="brand">
-          <img class="mark" src="brand/logo-mark.svg" alt="" width="64" height="64" />
+          <img class="mark" src="brand/logo-mark.png" alt="" width="64" height="64" />
           <p class="kicker">All-in-one business portal</p>
           <h1>Company Portal</h1>
           <p class="lede">People, operations, sales and customers, all in one place.</p>

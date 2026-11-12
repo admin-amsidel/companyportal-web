@@ -58,7 +58,7 @@ const STEP = 0.1;
           </ng-template>
           <ng-template let-node pTemplate="group">
             <div class="box box--group">
-              <img src="brand/logo-mark.svg" alt="" width="30" height="30" />
+              <img src="brand/logo-mark.png" alt="" width="30" height="30" />
               <b>Our organisation</b>
             </div>
           </ng-template>
