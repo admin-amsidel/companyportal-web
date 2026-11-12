@@ -152,6 +152,11 @@ import { apiProblem, BLOOD_GROUPS, designationLabel, fromIsoDate, ROLE_LABELS, t
     }
   `,
   styles: `
+    /* one even gap between every part of the page: the cards here, the completion bar, and the cards inside
+       app-bank-details-card and app-employee-documents, which the shared ".p-card + .p-card" spacing cannot reach */
+    :host { display: flex; flex-direction: column; gap: 20px; }
+    .p-card + .p-card { margin-top: 0; }
+    @media (max-width: 560px) { :host { gap: 14px; } }
     .hero { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
     @media (max-width: 560px) { .hero { flex-direction: column; text-align: center; } .tags { justify-content: center; } }
     .hero h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); }
@@ -165,7 +170,7 @@ import { apiProblem, BLOOD_GROUPS, designationLabel, fromIsoDate, ROLE_LABELS, t
     /* profile completion: green when complete, yellow from 50%, orange below (same as the ring) */
     .completion {
       --tone: #e8890c; --tint: #fff6eb; --ink-tone: #8a4b00;
-      margin: 0 0 20px; border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent); border-left: 4px solid var(--tone);
+      margin: 0; border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent); border-left: 4px solid var(--tone);
       border-radius: 10px; background: var(--tint);
     }
     .completion.tone-mid { --tone: #e0b100; --tint: #fffbe8; --ink-tone: #6b5300; }
