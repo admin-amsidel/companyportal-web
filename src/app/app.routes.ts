@@ -7,10 +7,10 @@ import { providePortalUi } from './portal/portal-ui';
 
 export const routes: Routes = [
   {
-    // the product's public page: what Company Portal does, with a sign-in card
+    // the product's public page: what Peopiq does, with a sign-in card
     path: '',
     pathMatch: 'full',
-    title: 'Company Portal · People, Operations, Sales & Customers in one place',
+    title: 'Peopiq · People. Operations. Business. Connected.',
     loadComponent: () => import('./pages/landing/landing').then((m) => m.Landing),
   },
   // a customer's project status link: no sign-in, outside the portal

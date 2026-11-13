@@ -2,11 +2,7 @@
 <header class="top" [class.top--open]="menuOpen()">
   <div class="wrap top__bar">
     <a class="logo" routerLink="/" (click)="closeMenu()" aria-label="{{ product.name }} home">
-      <img src="brand/logo-mark.png" alt="" width="44" height="44" />
-      <span class="logo__text">
-        <b>{{ product.name }}</b>
-        <small>{{ product.tagline }}</small>
-      </span>
+      <img class="logo__word" src="brand/peopiq-logo.png" alt="{{ product.name }}" width="151" height="40" />
     </a>
 
     <nav class="nav" id="site-nav" aria-label="Main">
@@ -30,7 +26,7 @@
     <div class="hero__glow" aria-hidden="true"></div>
     <div class="wrap hero__grid">
       <div class="hero__copy">
-        <p class="eyebrow">All-in-one business portal</p>
+        <p class="eyebrow">{{ product.tagline }}</p>
         <h1>
           One Platform to<br class="br-wide" /> Manage <span class="grad grad--people">People,</span><br class="br-wide" />
           <span class="grad grad--work">Work &amp;</span> <span class="grad grad--biz">Business</span>
@@ -53,7 +49,7 @@
         <span class="blob" aria-hidden="true"></span>
         <span class="spark" aria-hidden="true"><i></i><i></i><i></i></span>
         <img src="images/hero-team.webp" width="1400" height="788" fetchpriority="high"
-             alt="A small team working together on a laptop showing the Company Portal dashboard" />
+             alt="A small team working together on a laptop showing the {{ product.name }} dashboard" />
       </div>
     </div>
 
@@ -152,10 +148,10 @@
 
       <!-- a small product preview drawn in HTML: sharp at any size and light to load -->
       <div class="preview" aria-hidden="true">
-        <div class="preview__bar"><i></i><i></i><i></i><span>companyportal / dashboard</span></div>
+        <div class="preview__bar"><i></i><i></i><i></i><span>peopiq / dashboard</span></div>
         <div class="preview__body">
           <div class="preview__side">
-            <img src="brand/logo-mark.png" alt="" width="26" height="26" />
+            <img src="brand/peopiq-mark.png" alt="" width="26" height="26" />
             @for (m of modules.slice(0, 6); track m.title) {
               <span class="tone--{{ m.tone }}"><cp-icon [name]="m.icon" [stroke]="1.8" /></span>
             }
@@ -238,8 +234,7 @@
 <footer class="foot">
   <div class="wrap foot__row">
     <a class="logo logo--small" routerLink="/" fragment="top">
-      <img src="brand/logo-mark.png" alt="" width="32" height="32" />
-      <span class="logo__text"><b>{{ product.name }}</b></span>
+      <img class="logo__word" src="brand/peopiq-logo.png" alt="{{ product.name }}" width="121" height="32" />
     </a>
     <nav class="foot__links" aria-label="Footer">
       <a routerLink="/" fragment="modules">Modules</a>

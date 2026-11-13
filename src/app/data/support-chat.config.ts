@@ -20,13 +20,13 @@ export interface ChatFaq {
 export const SUPPORT_CHAT = {
   botName: 'Portal Assistant',
   greeting: [
-    'Hi there! 👋 I’m the Company Portal assistant.',
+    'Hi there! 👋 I’m the Peopiq assistant.',
     'I can tell you about our features and pricing, arrange a call back from our team, or book a live demo.',
   ],
 
   /** Shown for "Pricing & plans". TODO (sales): replace with your actual plans and prices. */
   pricing: [
-    'Company Portal is priced per company, based on the number of employees and the modules you switch on — so you only pay for what you use.',
+    'Peopiq is priced per company, based on the number of employees and the modules you switch on — so you only pay for what you use.',
     'Hosting, updates, backups and support are included in the subscription, and there is nothing to install.',
     'Share your contact details and our customer agent will send you a quote for your team size.',
   ],
@@ -42,7 +42,7 @@ export const SUPPORT_CHAT = {
   faqs: [
     {
       q: 'Do I need to install anything?',
-      a: ['No. Company Portal runs in the web browser on desktops, tablets and phones. Your team signs in with a user ID and PIN — nothing to download.'],
+      a: ['No. Peopiq runs in the web browser on desktops, tablets and phones. Your team signs in with a user ID and PIN — nothing to download.'],
       keywords: ['install', 'download', 'browser', 'software'],
     },
     {

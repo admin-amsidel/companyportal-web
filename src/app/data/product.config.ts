@@ -4,12 +4,12 @@
  */
 
 /**
- * Who sells Company Portal and how prospects reach them: shown on the landing page (/). Empty values are hidden,
+ * Who sells Peopiq, the product (made by IANEL Technologies), and how prospects reach them: shown on the landing page (/). Empty values are hidden,
  * so fill in only what should be public.
  */
 export const PRODUCT = {
-  name: 'Company Portal',
-  tagline: 'People • Operations • Sales • Customers',
+  name: 'Peopiq',
+  tagline: 'People. Operations. Business. Connected.',
   vendor: 'IANEL Technologies',
   /** "Request a demo" and "Contact sales" open a mail to this address. */
   salesEmail: '',

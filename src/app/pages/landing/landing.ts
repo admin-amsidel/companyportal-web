@@ -18,7 +18,7 @@ interface Feature {
 }
 
 /**
- * Company Portal's public page: what the product does and why it helps. Existing customers sign in through "Login to
+ * Peopiq's public page: what the product does and why it helps. Existing customers sign in through "Login to
  * Portal" (the /login page); prospects ask the support chat about features and pricing, or for a call back or a demo.
  */
 @Component({
@@ -34,7 +34,7 @@ export class Landing {
   protected readonly year = new Date().getFullYear();
   protected readonly demoHref = salesMailto(
     `${PRODUCT.name} demo request`,
-    'Hello,\n\nWe would like a demo of Company Portal.\n\nCompany:\nNumber of employees:\nModules we are interested in:\nPhone:\n',
+    'Hello,\n\nWe would like a demo of Peopiq.\n\nCompany:\nNumber of employees:\nModules we are interested in:\nPhone:\n',
   );
   protected readonly salesHref = salesMailto(`${PRODUCT.name} enquiry`);
   protected readonly phoneHref = PRODUCT.phone ? telHref(PRODUCT.phone) : '';
