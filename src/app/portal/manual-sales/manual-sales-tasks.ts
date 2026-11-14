@@ -4,7 +4,7 @@
  */
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
@@ -21,6 +21,8 @@ import { AuthService } from '../auth.service';
 import { apiProblem, toIsoDate } from '../portal.models';
 import { CheckboxModule } from 'primeng/checkbox';
 import { GoalChoice, ManualSalesService, ManualTask, moneyText, TaskFilter, TaskOptions } from './manual-sales.service';
+import { TaskService } from '../worklog/task.service';
+import { hrs } from '../worklog/worklog.models';
 
 type Period = 'ALL' | 'MONTH' | 'DATES';
 
@@ -91,7 +93,10 @@ type Period = 'ALL' | 'MONTH' | 'DATES';
             @if (seesOrders()) { <td data-label="Ordered" class="num">{{ money(t, t.ordered) }}</td> }
             @if (seesInvoices()) { <td data-label="Invoiced" class="num">{{ money(t, t.invoiced) }}</td> }
             @if (seesOrders() && seesInvoices()) { <td data-label="To invoice" class="num">{{ t.balance === null ? '—' : money(t, t.balance) }}</td> }
-            <td class="stack-end"><p-button icon="pi pi-pencil" [text]="true" [rounded]="true" size="small" [ariaLabel]="'Edit ' + t.code" (onClick)="edit(t)" /></td>
+            <td class="stack-end nowrap"><p-button icon="pi pi-pencil" [text]="true" [rounded]="true" size="small" [ariaLabel]="'Edit ' + t.code" (onClick)="edit(t)" />
+              @if (canDelete()) {
+                <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small" severity="danger" [ariaLabel]="'Delete task ' + t.code" (onClick)="remove(t)" />
+              }</td>
           </tr>
         </ng-template>
         <ng-template #emptymessage><tr><td [attr.colspan]="6 + (seesOrders() ? 1 : 0) + (seesInvoices() ? 1 : 0) + (seesOrders() && seesInvoices() ? 1 : 0)" class="p-empty">{{ loading() ? 'Loading…' : tasks().length ? 'No tasks match.' : 'No manual sales tasks yet.' }}</td></tr></ng-template>
@@ -189,6 +194,10 @@ export class ManualSalesTasks implements OnInit {
   private readonly api = inject(ManualSalesService);
   protected readonly auth = inject(AuthService);
   private readonly toast = inject(MessageService);
+  private readonly taskApi = inject(TaskService);
+  private readonly confirm = inject(ConfirmationService);
+  /** Deleting tasks is for owners and admins only, as on Work log > Tasks (the server checks it too). */
+  protected readonly canDelete = computed(() => this.auth.user()?.role === 'OWNER' || this.auth.user()?.role === 'ADMIN');
 
   protected readonly statusOptions = [{ label: 'All tasks', value: null as string | null }, { label: 'Open', value: 'OPEN' as string | null }, { label: 'Closed', value: 'CLOSED' as string | null }];
   protected readonly openClosed = [{ label: 'Open', value: 'OPEN' }, { label: 'Closed', value: 'CLOSED' }];
@@ -294,6 +303,35 @@ export class ManualSalesTasks implements OnInit {
       to = toIsoDate(this.to());
     }
     return { status: this.statusFilter(), from, to, code: this.code(), employeeId: this.employeeId(), q: this.query().trim() };
+  }
+
+  /**
+   * Delete a manual sales task for good (one made by mistake, or test data), as on Work log > Tasks: first ask what
+   * goes with it, then delete on confirmation. The server refuses when something prevents it, and that is shown.
+   */
+  protected remove(t: ManualTask): void {
+    this.taskApi.deleteCheck(t.id).subscribe({
+      next: (c) => {
+        const goes: string[] = [];
+        if (c.logEntries) goes.push(`${c.logEntries} work log ${c.logEntries === 1 ? 'entry' : 'entries'} (${hrs(c.hours)}) by ${c.loggedBy} ${c.loggedBy === 1 ? 'person' : 'people'}, with their quotation, sales order and invoice details`);
+        if (c.goalItems) goes.push(`${c.goalItems} performance goal ${c.goalItems === 1 ? 'item' : 'items'}`);
+        this.confirm.confirm({
+          header: `Delete ${c.code}?`,
+          message: `"${c.title}" will be deleted for good` + (goes.length ? `, together with ${goes.join(' and ')}.` : '.')
+            + ' This cannot be undone. To stop work on a real task, close it instead.',
+          icon: 'pi pi-trash', acceptLabel: 'Delete task', rejectLabel: 'Keep',
+          acceptButtonProps: { severity: 'danger' }, rejectButtonProps: { outlined: true },
+          accept: () => this.taskApi.delete(t.id).subscribe({
+            next: () => {
+              this.toast.add({ severity: 'success', summary: 'Task deleted', detail: `${c.code} · ${c.title}` });
+              this.load();
+            },
+            error: (err) => this.toast.add({ severity: 'error', summary: 'Not deleted', detail: apiProblem(err).message, life: 8000 }),
+          }),
+        });
+      },
+      error: (err) => this.toast.add({ severity: 'error', summary: 'Cannot delete', detail: apiProblem(err).message, life: 8000 }),
+    });
   }
 
   private load(): void {

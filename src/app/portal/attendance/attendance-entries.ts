@@ -27,6 +27,7 @@ import { AttendanceRecord, FLAG_LABELS, IST, LocationFlag, mapLink, MODE_LABELS,
               @if (e.place) { <span class="muted">· {{ modeLabels[e.workMode] }}</span> }
               @if (!e.checkOut) { <p-tag value="Open" severity="success" /> }
               @if (e.approval === 'PENDING') { <p-tag value="Waiting for approval" severity="warn" icon="pi pi-clock" /> }
+              @if (e.approval === 'APPROVED') { <p-tag value="Approved" severity="success" icon="pi pi-check" /> }
               @if (e.approval === 'REJECTED') { <p-tag value="Rejected" severity="danger" icon="pi pi-times" /> }
             </div>
             <div class="entry__times">
