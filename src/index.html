@@ -29,76 +29,54 @@
       background: #fff;
       transition: opacity .2s ease, visibility 0s;
     }
-    /* during saves and refreshes inside a page: the page stays visible behind the logo */
+    /* during saves and refreshes inside a page: the page stays visible behind the cloud */
     #app-loader.is-busy { background: rgba(255, 255, 255, .72); cursor: progress; }
     #app-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .45s ease, visibility 0s .45s; }
-    /* The IANEL cloud, in layers from one sprite (brand/loader-sprite.png, 8 frames top to bottom): 0 the cloud and its
-       gold wave, 1 the network of nodes, 2-7 the data squares. The cloud floats with a gold shine passing over it, the
-       network draws itself left to right, and the squares fly in one after another, as data going up into the cloud. */
-    .ldr { position: relative; width: 184px; display: grid; place-items: center; }
-    .ldr__glow {
-      position: absolute; inset: -22px -10px; border-radius: 50%;
-      background: radial-gradient(closest-side, rgba(234, 179, 8, .26), rgba(234, 179, 8, 0));
-      animation: ldr-glow 2.6s ease-in-out infinite;
-    }
-    .ldr__mark { position: relative; width: 100%; aspect-ratio: 3 / 2; animation: ldr-float 2.6s ease-in-out infinite; }
-    .ldr__l, .ldr__base::after {
+    /* The line cloud, in layers from one sprite (brand/loader-sprite.png, 9 frames top to bottom): 0 the cloud
+       outline, 1 the waves, 2 the network, 3-8 the squares. The cloud floats with a blue light running along its
+       outline, the waves sway, the network draws itself left to right and the squares fly up one after another. */
+    .ldr { position: relative; width: 168px; display: grid; justify-items: center; }
+    .ldr__mark { position: relative; width: 100%; aspect-ratio: 360 / 238; animation: ldr-float 2.6s ease-in-out infinite; }
+    .ldr__l, .ldr__cloud::after {
       position: absolute; inset: 0;
-      background: url(brand/loader-sprite.png) 0 calc(var(--f) * 100% / 7) / 100% 800% no-repeat;
+      background: url(brand/loader-sprite.png) 0 calc(var(--f) * 100% / 8) / 100% 900% no-repeat;
     }
-    .ldr__base { --f: 0; }
-    /* a band of light crossing the cloud, kept inside its shape by the cloud's own frame as a mask */
-    .ldr__base::after {
+    .ldr__cloud { --f: 0; }
+    /* a band of blue light along the outline, kept to its shape by the outline's own frame as a mask */
+    .ldr__cloud::after {
       content: "";
-      background: linear-gradient(105deg, rgba(255, 255, 255, 0) 38%, rgba(255, 247, 220, .9) 50%, rgba(255, 255, 255, 0) 62%) 100% 0 / 300% 100% no-repeat;
-      -webkit-mask: url(brand/loader-sprite.png) 0 0 / 100% 800% no-repeat;
-              mask: url(brand/loader-sprite.png) 0 0 / 100% 800% no-repeat;
+      background: linear-gradient(100deg, rgba(37, 132, 255, 0) 40%, rgba(64, 160, 255, .95) 50%, rgba(37, 132, 255, 0) 60%) 100% 0 / 300% 100% no-repeat;
+      -webkit-mask: url(brand/loader-sprite.png) 0 0 / 100% 900% no-repeat;
+              mask: url(brand/loader-sprite.png) 0 0 / 100% 900% no-repeat;
       animation: ldr-shine 2.6s ease-in-out infinite;
     }
-    .ldr__net { --f: 1; animation: ldr-draw 2.6s ease-in-out infinite; }
-    .ldr__bit {
-      transform-origin: var(--ox) var(--oy);
-      animation: ldr-bit 2.6s cubic-bezier(.2, .8, .2, 1) var(--d) infinite both;
-    }
+    .ldr__waves { --f: 1; animation: ldr-sway 1.3s ease-in-out infinite alternate; }
+    .ldr__net { --f: 2; animation: ldr-draw 2.6s ease-in-out infinite; }
+    .ldr__bit { transform-origin: var(--ox) var(--oy); animation: ldr-bit 2.6s cubic-bezier(.2, .8, .2, 1) var(--d) infinite both; }
     .ldr__shadow {
-      width: 58%; height: 10px; margin-top: 6px; border-radius: 50%;
-      background: radial-gradient(closest-side, rgba(31, 33, 38, .22), rgba(31, 33, 38, 0));
+      width: 56%; height: 8px; margin-top: 4px; border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(15, 23, 42, .18), rgba(15, 23, 42, 0));
       animation: ldr-shadow 2.6s ease-in-out infinite;
     }
-    .ldr__name {
-      margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: 14px;
-      letter-spacing: .32em; text-indent: .32em; text-transform: uppercase;
-      color: #2b2d33;
-      background: linear-gradient(90deg, #2b2d33 0 40%, #d4a017 50%, #2b2d33 60% 100%) 100% 0 / 300% 100%;
-      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-      animation: ldr-shine 2.6s ease-in-out infinite;
-    }
-    @keyframes ldr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes ldr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     @keyframes ldr-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.82); opacity: .55; } }
-    @keyframes ldr-glow { 0%, 100% { opacity: .45; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.04); } }
-    @keyframes ldr-shine { 0%, 15% { background-position: 100% 0; } 75%, 100% { background-position: 0 0; } }
+    @keyframes ldr-shine { 0%, 10% { background-position: 100% 0; } 70%, 100% { background-position: 0 0; } }
+    @keyframes ldr-sway { from { transform: translateX(-1.6%); } to { transform: translateX(1.6%); } }
     @keyframes ldr-draw {
-      0% { clip-path: inset(0 74% 0 0); opacity: 1; }
+      0% { clip-path: inset(0 75.5% 0 0); opacity: 1; }
       38%, 86% { clip-path: inset(0 0 0 0); opacity: 1; }
       100% { clip-path: inset(0 0 0 0); opacity: 0; }
     }
     @keyframes ldr-bit {
       0%, 12% { opacity: 0; transform: translate(-7%, 7%) scale(.2); }
-      34% { opacity: 1; transform: none; }
-      84% { opacity: 1; transform: none; }
+      34%, 84% { opacity: 1; transform: none; }
       100% { opacity: 0; transform: translate(3%, -4%) scale(.6); }
     }
-    /* phones: a smaller cloud */
-    @media (max-width: 560px) {
-      #app-loader { gap: 14px; }
-      .ldr { width: 144px; }
-      .ldr__name { font-size: 12px; }
-    }
-    /* reduced motion: the whole cloud stands still; only the glow breathes */
+    @media (max-width: 560px) { .ldr { width: 136px; } }
+    /* reduced motion: the cloud stands still */
     @media (prefers-reduced-motion: reduce) {
-      .ldr__mark, .ldr__net, .ldr__bit, .ldr__shadow, .ldr__base::after, .ldr__name { animation: none; }
-      .ldr__base::after { display: none; }
-      .ldr__name { -webkit-text-fill-color: #2b2d33; }
+      .ldr__mark, .ldr__waves, .ldr__net, .ldr__bit, .ldr__shadow, .ldr__cloud::after { animation: none; }
+      .ldr__cloud::after { display: none; }
     }
     /* nothing animates while the loader is hidden */
     #app-loader.is-hidden *, #app-loader.is-hidden *::before, #app-loader.is-hidden *::after { animation-play-state: paused; }
@@ -108,20 +86,19 @@
 <body>
   <div id="app-loader" role="status" aria-live="polite">
     <div class="ldr" aria-hidden="true">
-      <span class="ldr__glow"></span>
       <span class="ldr__mark">
-        <i class="ldr__l ldr__base"></i>
+        <i class="ldr__l ldr__cloud"></i>
+        <i class="ldr__l ldr__waves"></i>
         <i class="ldr__l ldr__net"></i>
-        <i class="ldr__l ldr__bit" style="--f:2;--ox:72.9%;--oy:42.5%;--d:0s"></i>
-        <i class="ldr__l ldr__bit" style="--f:3;--ox:81%;--oy:40%;--d:.09s"></i>
-        <i class="ldr__l ldr__bit" style="--f:4;--ox:89.1%;--oy:37.6%;--d:.18s"></i>
-        <i class="ldr__l ldr__bit" style="--f:5;--ox:85.8%;--oy:27.4%;--d:.27s"></i>
-        <i class="ldr__l ldr__bit" style="--f:6;--ox:92.9%;--oy:28.9%;--d:.36s"></i>
-        <i class="ldr__l ldr__bit" style="--f:7;--ox:94.7%;--oy:19.1%;--d:.45s"></i>
+        <i class="ldr__l ldr__bit" style="--f:3;--ox:70.9%;--oy:41.7%;--d:0s"></i>
+        <i class="ldr__l ldr__bit" style="--f:4;--ox:79.4%;--oy:39.5%;--d:.09s"></i>
+        <i class="ldr__l ldr__bit" style="--f:5;--ox:87.7%;--oy:37.2%;--d:.18s"></i>
+        <i class="ldr__l ldr__bit" style="--f:6;--ox:84.4%;--oy:27%;--d:.27s"></i>
+        <i class="ldr__l ldr__bit" style="--f:7;--ox:92.2%;--oy:28.4%;--d:.36s"></i>
+        <i class="ldr__l ldr__bit" style="--f:8;--ox:94.2%;--oy:18.6%;--d:.45s"></i>
       </span>
       <span class="ldr__shadow"></span>
     </div>
-    <p class="ldr__name">Company Portal</p>
     <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Loading…</span>
   </div>
   <app-root></app-root>
