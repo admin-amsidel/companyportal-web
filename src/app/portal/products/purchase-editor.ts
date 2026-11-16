@@ -83,11 +83,11 @@ const GST_RATES = [0, 5, 12, 18, 28].map((r) => ({ label: r + '%', value: r }));
             <h2>Supplier</h2>
             <div class="row">
               @if (!bill() && brand.many()) {
-                <div class="pf"><label for="pe-brand">Brand *</label>
+                <div class="pf"><label for="pe-brand">Brand <span class="req">*</span></label>
                   <p-select inputId="pe-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                             [ngModel]="brandId()" (ngModelChange)="brandId.set($event); supplierId.set(null); lines.set([]); addLine()" /></div>
               }
-              <div class="pf grow"><label for="pe-sup">Supplier *</label>
+              <div class="pf grow"><label for="pe-sup">Supplier <span class="req">*</span></label>
                 <p-select inputId="pe-sup" [options]="supplierOptions()" optionLabel="label" optionValue="value" [filter]="true" placeholder="Choose the supplier"
                           [disabled]="!editable() || !brandId()" [ngModel]="supplierId()" (ngModelChange)="supplierId.set($event); dirty.set(true)" />
                 @if (supplier(); as s) {
@@ -96,7 +96,7 @@ const GST_RATES = [0, 5, 12, 18, 28].map((r) => ({ label: r + '%', value: r }));
               </div>
               <div class="pf"><label for="pe-no">Their bill no</label>
                 <input pInputText id="pe-no" maxlength="50" [disabled]="!editable()" [ngModel]="supplierBillNo()" (ngModelChange)="supplierBillNo.set($event); dirty.set(true)" /></div>
-              <div class="pf"><label for="pe-date">Bill date *</label>
+              <div class="pf"><label for="pe-date">Bill date <span class="req">*</span></label>
                 <p-datepicker inputId="pe-date" dateFormat="dd/mm/yy" [showIcon]="true" [disabled]="!editable()" [ngModel]="billDate()" (ngModelChange)="billDate.set($event); dirty.set(true)" /></div>
             </div>
           </section>
@@ -117,9 +117,9 @@ const GST_RATES = [0, 5, 12, 18, 28].map((r) => ({ label: r + '%', value: r }));
                     @if (note(l); as n) { <small class="note">{{ n }}</small> }
                   </div>
                   <div class="line__nums">
-                    <div class="pf"><label [for]="'pq' + l.key">Qty</label>
+                    <div class="pf"><label [for]="'pq' + l.key">Qty <span class="req">*</span></label>
                       <p-inputnumber [inputId]="'pq' + l.key" [min]="0" [maxFractionDigits]="2" [disabled]="!editable()" [ngModel]="l.quantity" (ngModelChange)="patch(l.key, { quantity: $event })" /></div>
-                    <div class="pf"><label [for]="'pr' + l.key">Price each</label>
+                    <div class="pf"><label [for]="'pr' + l.key">Price each <span class="req">*</span></label>
                       <p-inputnumber [inputId]="'pr' + l.key" mode="currency" [currency]="cur()" [locale]="curLocale()" [min]="0" [disabled]="!editable()" [ngModel]="l.rate" (ngModelChange)="patch(l.key, { rate: $event })" /></div>
                     <div class="amt"><span>Amount</span><b>{{ money(amount(l)) }}</b></div>
                   </div>
@@ -200,7 +200,7 @@ const GST_RATES = [0, 5, 12, 18, 28].map((r) => ({ label: r + '%', value: r }));
     <p-dialog header="Cancel this bill" [modal]="true" [visible]="cancelOpen()" (visibleChange)="cancelOpen.set($event)"
               [style]="{ width: '460px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       <p class="muted">Its items leave stock again. Record the supplier's refund of any payment first.</p>
-      <div class="pf"><label for="pe-why">Reason *</label>
+      <div class="pf"><label for="pe-why">Reason <span class="req">*</span></label>
         <input pInputText id="pe-why" maxlength="300" placeholder="e.g. Goods returned" [ngModel]="cancelReason()" (ngModelChange)="cancelReason.set($event)" /></div>
       <ng-template #footer>
         <p-button label="Keep it" [text]="true" (onClick)="cancelOpen.set(false)" />

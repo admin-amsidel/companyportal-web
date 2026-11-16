@@ -47,12 +47,19 @@
         <td data-label="Status" class="stack-full">
           <p-tag [value]="statusLabel(r.status)" [severity]="statusSeverity(r.status)" />
           @if (r.decisionNote && r.status !== 'PENDING') { <small class="block muted">{{ r.decisionNote }}</small> }
+          @if (r.status === 'REVOKED') {
+            <small class="block muted">Revoked by {{ r.revokedByName }}@if (r.revokeNote) {: “{{ r.revokeNote }}” }</small>
+          }
         </td>
         <td class="act stack-end">
           @if (r.status === 'PENDING') {
             <p-button label="Approve" icon="pi pi-check" size="small" [loading]="workingId() === r.id" (onClick)="approve(r)" />
             <p-button label="Reject" size="small" [text]="true" severity="danger" [disabled]="workingId() === r.id"
                       (onClick)="startReject(r)" />
+          }
+          @if (r.canRevoke) {
+            <p-button label="Revoke" icon="pi pi-undo" size="small" [text]="true" severity="danger" [disabled]="workingId() === r.id"
+                      (onClick)="startReject(r, true)" />
           }
         </td>
       </tr>
@@ -63,12 +70,16 @@
   </p-table>
 </section>
 
-<p-dialog header="Reject leave" [modal]="true" [visible]="!!rejecting()" (visibleChange)="!$event && rejecting.set(null)"
+<p-dialog [header]="revoking() ? 'Revoke approved leave' : 'Reject leave'" [modal]="true" [visible]="!!rejecting()" (visibleChange)="!$event && rejecting.set(null)"
           [style]="{ width: '460px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
   @if (rejecting(); as r) {
     <p class="dlg-sub">{{ r.employeeName }} · {{ r.leaveTypeName }} · {{ dateRange(r) }}</p>
+    @if (revoking()) {
+      <p class="dlg-sub">The leave is taken back and {{ days(r.days) }} day(s) go back to {{ r.employeeName }}'s {{ r.leaveTypeName }} balance.
+        This cannot be undone; they can apply again if needed.</p>
+    }
     <div class="pf">
-      <label for="rj-note">Reason (the employee sees this)</label>
+      <label for="rj-note">Reason (the employee sees this) <span class="req">*</span></label>
       <textarea pTextarea id="rj-note" rows="3" maxlength="300" [autoResize]="true"
                 [ngModel]="rejectNote()" (ngModelChange)="rejectNote.set($event)"></textarea>
     </div>
@@ -76,7 +87,7 @@
   }
   <ng-template #footer>
     <p-button label="Back" [outlined]="true" severity="secondary" (onClick)="rejecting.set(null)" />
-    <p-button label="Reject leave" severity="danger" [loading]="workingId() === rejecting()?.id" (onClick)="confirmReject()" />
+    <p-button [label]="revoking() ? 'Revoke leave' : 'Reject leave'" severity="danger" [loading]="workingId() === rejecting()?.id" (onClick)="confirmReject()" />
   </ng-template>
 </p-dialog>
 
@@ -86,7 +97,7 @@
 
   <form class="apply" (ngSubmit)="grant()" novalidate>
     <div class="pf">
-      <label for="g-who">Person</label>
+      <label for="g-who">Person <span class="req">*</span></label>
       <p-select inputId="g-who" name="who" [options]="teamOptions()" optionLabel="label" optionValue="value" [filter]="true"
                 filterPlaceholder="Search people" placeholder="Choose…" emptyMessage="Nobody in your team yet"
                 [ngModel]="grantEmployee()" (ngModelChange)="pickMember($event)" />
@@ -100,26 +111,26 @@
     </div>
     <div class="dates">
       <div class="pf">
-        <label for="g-type">Type of leave</label>
+        <label for="g-type">Type of leave <span class="req">*</span></label>
         <p-select inputId="g-type" name="type" [options]="grantTypeOptions()" optionLabel="label" optionValue="value"
                   [ngModel]="grantType()" (ngModelChange)="grantType.set($event)" />
       </div>
       <div class="pf">
-        <label for="g-days">Days</label>
+        <label for="g-days">Days <span class="req">*</span></label>
         <p-inputnumber inputId="g-days" name="days" [min]="0.5" [max]="60" [step]="0.5" [showButtons]="true"
                        [minFractionDigits]="0" [maxFractionDigits]="1" [ngModel]="grantDays()" (ngModelChange)="grantDays.set($event)" />
       </div>
     </div>
     @if (isCompOff()) {
       <div class="pf">
-        <label for="g-worked">Day they worked</label>
+        <label for="g-worked">Day they worked <span class="req">*</span></label>
         <p-datepicker inputId="g-worked" name="worked" dateFormat="dd/mm/yy" [showIcon]="true" [maxDate]="today"
                       placeholder="Sunday or holiday worked" appendTo="body"
                       [ngModel]="grantWorkedOn()" (ngModelChange)="grantWorkedOn.set($event)" />
       </div>
     }
     <div class="pf">
-      <label for="g-reason">Reason</label>
+      <label for="g-reason">Reason <span class="req">*</span></label>
       <input pInputText id="g-reason" name="reason" maxlength="300" placeholder="e.g. Worked Sunday for site installation"
              [ngModel]="grantReason()" (ngModelChange)="grantReason.set($event)" />
     </div>

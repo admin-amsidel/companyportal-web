@@ -78,10 +78,10 @@ import { TradeService } from './trade.service';
               [style]="{ width: '520px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false" appendTo="body">
       <div class="form">
         <div class="two">
-          <div class="pf"><label for="pp-amt">Amount *</label>
+          <div class="pf"><label for="pp-amt">Amount <span class="req">*</span></label>
             <p-inputnumber inputId="pp-amt" mode="currency" [currency]="currency()" [locale]="curLocale()" [min]="0" [ngModel]="amount()" (ngModelChange)="amount.set($event)" />
             <small class="hint">{{ kind() === 'REFUND' ? 'Up to ' + money(totals().paid) + ' paid' : money(totals().due) + ' still due' }}</small></div>
-          <div class="pf"><label for="pp-date">Date *</label>
+          <div class="pf"><label for="pp-date">Date <span class="req">*</span></label>
             <p-datepicker inputId="pp-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [showOnFocus]="false"
                           panelStyleClass="over-dialog" [ngModel]="paidOn()" (ngModelChange)="paidOn.set($event)" /></div>
         </div>
@@ -110,7 +110,7 @@ import { TradeService } from './trade.service';
     <p-dialog header="Void this payment" [modal]="true" [visible]="!!voiding()" (visibleChange)="!$event && voiding.set(null)"
               [style]="{ width: '440px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false" appendTo="body">
       <p class="muted">It stays in the list, struck through, with your reason. The amounts are worked out again.</p>
-      <div class="pf"><label for="pp-why">Reason *</label>
+      <div class="pf"><label for="pp-why">Reason <span class="req">*</span></label>
         <input pInputText id="pp-why" maxlength="300" placeholder="e.g. Entered twice" [ngModel]="voidReason()" (ngModelChange)="voidReason.set($event)" /></div>
       @if (error()) { <p-message severity="error" styleClass="mt">{{ error() }}</p-message> }
       <ng-template #footer>

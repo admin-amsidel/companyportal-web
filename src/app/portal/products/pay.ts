@@ -90,7 +90,7 @@ const STATUS: Record<OnlinePayStatus, { label: string; severity: 'success' | 'wa
             <section class="p-card steps">
               <div class="step">
                 <span class="num-dot">1</span>
-                <div class="pf"><label for="pb-cust">Customer</label>
+                <div class="pf"><label for="pb-cust">Customer <span class="req">*</span></label>
                   <p-select inputId="pb-cust" [options]="customers()" optionLabel="name" optionValue="id" [filter]="true" filterBy="name,code,phone,email"
                             [loading]="loadingCustomers()" placeholder="Choose the customer" [ngModel]="customerId()" (ngModelChange)="pickCustomer($event)"
                             styleClass="full" [emptyMessage]="'No customer of this brand has a bill to pay'" appendTo="body">
@@ -104,7 +104,7 @@ const STATUS: Record<OnlinePayStatus, { label: string; severity: 'success' | 'wa
               @if (customerId()) {
                 <div class="step">
                   <span class="num-dot">2</span>
-                  <div class="pf"><span class="pf-label">Bill</span>
+                  <div class="pf"><span class="pf-label">Bill <span class="req">*</span></span>
                     @if (loadingBills()) { <span class="muted">Loading the bills…</span> }
                     <div class="bills" role="radiogroup" aria-label="Bill">
                       @for (b of bills(); track b.id) {
@@ -140,7 +140,7 @@ const STATUS: Record<OnlinePayStatus, { label: string; severity: 'success' | 'wa
                       @if (bp.card === false) {
                         <p-message severity="warn" styleClass="note method-off">Cards are not switched on in this Razorpay account.</p-message>
                       }</div>
-                    <div class="pf"><label for="pb-amt">Amount to pay now</label>
+                    <div class="pf"><label for="pb-amt">Amount to pay now <span class="req">*</span></label>
                       <p-inputnumber inputId="pb-amt" mode="currency" currency="INR" locale="en-IN" [min]="1" [max]="b.due"
                                      [ngModel]="amount()" (ngModelChange)="amount.set($event)" />
                       <small class="hint">Up to {{ money(b.due) }} (the amount still due). Part payments are fine.</small></div>
@@ -188,7 +188,7 @@ const STATUS: Record<OnlinePayStatus, { label: string; severity: 'success' | 'wa
               @else { <i class="pi pi-lock" aria-hidden="true"></i> Only owners and admins can change it. }</p>
             <div class="fee-row">
               @for (f of setup()?.fees ?? []; track f.method) {
-                <div class="pf fee"><label [for]="'fee-' + f.method">{{ methodName(f.method) }} (%)</label>
+                <div class="pf fee"><label [for]="'fee-' + f.method">{{ methodName(f.method) }} (%) @if (setup()?.canSetFees) { <span class="req">*</span> }</label>
                   @if (setup()?.canSetFees) {
                     <span class="fee-edit">
                       <p-inputnumber [inputId]="'fee-' + f.method" [min]="0" [max]="10" [minFractionDigits]="0" [maxFractionDigits]="2" suffix=" %"
@@ -329,14 +329,14 @@ const STATUS: Record<OnlinePayStatus, { label: string; severity: 'success' | 'wa
               <li>The customer scans the code with any UPI app (GPay, PhonePe, Paytm, BHIM) and pays <b>{{ money(m.total) }}</b>{{ m.payeeUpiId ? '' : ' (type the amount: this QR code has none filled in)' }}.</li>
               <li>Check the money has reached the brand's account (bank or UPI app), then type its UPI reference (UTR) below.</li>
             </ol>
-            <div class="pf"><label for="mu-ref">UPI reference (UTR) *</label>
+            <div class="pf"><label for="mu-ref">UPI reference (UTR) <span class="req">*</span></label>
               <input pInputText id="mu-ref" maxlength="35" autocomplete="off" spellcheck="false" inputmode="numeric" placeholder="12 digits, e.g. 412345678901"
                      [ngModel]="muRef()" (ngModelChange)="muRef.set($event.trim())" /></div>
             <div class="two">
               <div class="pf"><label for="mu-from">Customer's UPI ID</label>
                 <input pInputText id="mu-from" maxlength="100" autocomplete="off" inputmode="email" placeholder="name@bank (if shown)"
                        [ngModel]="muFrom()" (ngModelChange)="muFrom.set($event.trim())" /></div>
-              <div class="pf"><label for="mu-date">Paid on *</label>
+              <div class="pf"><label for="mu-date">Paid on <span class="req">*</span></label>
                 <p-datepicker inputId="mu-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [ngModel]="muDate()" (ngModelChange)="muDate.set($event)" /></div>
             </div>
             <div class="pf"><label for="mu-rem">Remarks</label>
@@ -357,11 +357,11 @@ const STATUS: Record<OnlinePayStatus, { label: string; severity: 'success' | 'wa
         <div class="form">
           <p class="muted">{{ o.billNumber }} · {{ o.customerName }}: {{ money(o.billAmount) }} paid by {{ o.source?.label ?? o.method }} ({{ o.paymentId }}).
             The money goes back through Razorpay to the same card or UPI ID, and the refund is recorded on the bill. The processing fee is not refunded.</p>
-          <div class="pf"><label for="rf-amt">Amount *</label>
+          <div class="pf"><label for="rf-amt">Amount <span class="req">*</span></label>
             <p-inputnumber inputId="rf-amt" mode="currency" currency="INR" locale="en-IN" [min]="1" [max]="o.billAmount - o.refunded"
                            [ngModel]="rfAmount()" (ngModelChange)="rfAmount.set($event)" />
             <small class="hint">Up to {{ money(o.billAmount - o.refunded) }}</small></div>
-          <div class="pf"><label for="rf-why">Why *</label>
+          <div class="pf"><label for="rf-why">Why <span class="req">*</span></label>
             <textarea pTextarea id="rf-why" rows="2" maxlength="300" [autoResize]="true" placeholder="e.g. One window returned"
                       [ngModel]="rfReason()" (ngModelChange)="rfReason.set($event)"></textarea></div>
           @if (rfError()) { <p-message severity="error">{{ rfError() }}</p-message> }

@@ -146,7 +146,7 @@ const STATUSES: { value: Status; label: string; severity: TagSeverity }[] = [
           <dt>Received</dt><dd>{{ e.createdAt | date: 'd MMM y, h:mm a' }}</dd>
         </dl>
         <div class="form">
-          <div class="pf"><label for="eq-status">Status *</label>
+          <div class="pf"><label for="eq-status">Status <span class="req">*</span></label>
             <p-select inputId="eq-status" [options]="statuses" optionLabel="label" optionValue="value" appendTo="body"
                       [ngModel]="newStatus()" (ngModelChange)="newStatus.set($event)" /></div>
           <div class="pf"><label for="eq-notes">Notes</label>

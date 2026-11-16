@@ -20,7 +20,7 @@
     <h2>Message</h2>
     <div class="pf">
       <div class="lbl-row">
-        <label for="m-subject">Subject *</label>
+        <label for="m-subject">Subject <span class="req">*</span></label>
         <p-button label="Insert name" icon="pi pi-user-plus" [text]="true" size="small" (onClick)="insertName(subjectEl, 'subject')" />
       </div>
       <input #subjectEl pInputText id="m-subject" maxlength="200" autocomplete="off" [placeholder]="t.placeholder"
@@ -60,7 +60,7 @@
     }
 
     <div class="pf">
-      <span class="pf-label" id="m-greet-lbl">Greeting</span>
+      <span class="pf-label" id="m-greet-lbl">Greeting @if (greetingMode() === 'CUSTOM') { <span class="req">*</span> }</span>
       <p-selectbutton [options]="greetingOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
                       ariaLabelledBy="m-greet-lbl" [ngModel]="greetingMode()" (ngModelChange)="greetingMode.set($event)" />
       <div class="dear">
@@ -77,7 +77,7 @@
 
     <div class="pf">
       <div class="lbl-row">
-        <label for="m-body">Message *</label>
+        <label for="m-body">Message <span class="req">*</span></label>
         <span class="lbl-actions">
           @if (byEmail() && canPicture) {
             <p-button label="Add picture" icon="pi pi-image" [text]="true" size="small" (onClick)="picIn.click()" />
@@ -140,7 +140,7 @@
 
     <div class="pf sig">
       <div class="lbl-row">
-        <label for="m-sig">Signature</label>
+        <label for="m-sig">Signature <span class="req">*</span></label>
         <span class="lbl-actions">
           @if (signature() !== signatureStandard()) {
             <p-button label="Use standard" icon="pi pi-replay" [text]="true" size="small" (onClick)="signature.set(signatureStandard())" />
@@ -222,7 +222,7 @@
         </div>
       }
       <div class="pf mt">
-        <label for="m-people">{{ trade ? (partyKind() === 'CUSTOMER' ? 'Customers' : 'Suppliers') : t.people }}</label>
+        <label for="m-people">{{ trade ? (partyKind() === 'CUSTOMER' ? 'Customers' : 'Suppliers') : t.people }} <span class="req">*</span></label>
         <p-multiselect inputId="m-people" [options]="peopleOptions()" optionLabel="label" optionValue="value" optionDisabled="disabled" [filter]="true"
                        [filterPlaceHolder]="t.search" [placeholder]="trade ? (partyKind() === 'CUSTOMER' ? 'Choose customers' : 'Choose suppliers') : t.pick" display="chip"
                        [maxSelectedLabels]="4" [selectedItemsLabel]="t.chosen" appendTo="body" [loading]="loading()"

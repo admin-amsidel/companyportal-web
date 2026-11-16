@@ -63,25 +63,25 @@ const NONE = 'NONE';
               <p-selectbutton [options]="directions" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="en-dir"
                               [disabled]="!!bankLineId()" [ngModel]="income()" (ngModelChange)="setIncome($event)" /></div>
             @if (brand.many()) {
-              <div class="pf"><label for="en-brand">Brand *</label>
+              <div class="pf"><label for="en-brand">Brand <span class="req">*</span></label>
                 <p-select inputId="en-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand" appendTo="body"
                           [disabled]="!!bankLineId()" [ngModel]="brandId()" (ngModelChange)="setBrand($event)" /></div>
             }
           </div>
         }
-        <div class="pf"><label for="en-cat">{{ income() ? 'Income from' : 'Expense for' }} *</label>
+        <div class="pf"><label for="en-cat">{{ income() ? 'Income from' : 'Expense for' }} <span class="req">*</span></label>
           <p-select inputId="en-cat" [options]="categories()" optionLabel="label" optionValue="value" placeholder="Choose" appendTo="body"
                     [ngModel]="category()" (ngModelChange)="setCategory($event)">
             <ng-template #item let-c><div class="opt"><span>{{ c.label }}</span><small class="muted">{{ c.hint }}{{ c.funding ? ' · not profit or loss' : '' }}</small></div></ng-template>
           </p-select></div>
         <div class="two">
-          <div class="pf"><label for="en-amt">Amount *</label>
+          <div class="pf"><label for="en-amt">Amount <span class="req">*</span></label>
             <p-inputnumber inputId="en-amt" mode="currency" currency="INR" locale="en-IN" [min]="0" [ngModel]="amount()" (ngModelChange)="amount.set($event)" />
             @if (invoice(); as inv) {
               @if (mode() === none) { <small class="hint">{{ money(dueOf(inv)) }} still due on {{ inv.number }}</small> }
             }
           </div>
-          <div class="pf"><label for="en-date">Date *</label>
+          <div class="pf"><label for="en-date">Date <span class="req">*</span></label>
             <p-datepicker inputId="en-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [showOnFocus]="false"
                           panelStyleClass="over-dialog" [ngModel]="date()" (ngModelChange)="date.set($event)" /></div>
         </div>
@@ -90,7 +90,7 @@ const NONE = 'NONE';
                           [ngModel]="mode()" (ngModelChange)="mode.set($event)" />
           @if (mode() === none) { <small class="hint">No money moved: what the customer did not pay on the invoice is kept as a discount, and the invoice is settled at its billed amount. The PDF stays as issued.</small> }
         </div>
-        <div class="pf"><label for="en-desc">Description *</label>
+        <div class="pf"><label for="en-desc">Description <span class="req">*</span></label>
           <input pInputText id="en-desc" maxlength="300" [placeholder]="income() ? 'e.g. Capital from Sibin for stock' : 'e.g. Lorry to Varghese villa site'"
                  [ngModel]="description()" (ngModelChange)="description.set($event)" /></div>
         <div class="two">
@@ -105,7 +105,7 @@ const NONE = 'NONE';
         <fieldset class="links">
           <legend>For <span class="opt">(optional · the bill numbers it belongs to)</span></legend>
           @if (needBrand()) { <small class="hint">Choose the brand above to pick its invoices, projects and purchase bills.</small> }
-          <div class="pf"><label for="en-inv">Invoice {{ mode() === none ? '*' : '' }}</label>
+          <div class="pf"><label for="en-inv">Invoice @if (mode() === none) { <span class="req">*</span> }</label>
             <p-select inputId="en-inv" [options]="invoiceOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"
                       [showClear]="true" [placeholder]="needBrand() ? 'Choose the brand first' : 'Not for an invoice'" appendTo="body"
                       [loading]="linksLoading()" [disabled]="needBrand()"

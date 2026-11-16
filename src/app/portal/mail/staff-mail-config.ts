@@ -162,16 +162,16 @@ interface Row extends BrandMailLimits {
               [style]="{ width: '520px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       @if (editing(); as e) {
         <div class="bform">
-          <div class="pf"><label for="b-login">SMTP login *</label>
+          <div class="pf"><label for="b-login">SMTP login <span class="req">*</span></label>
             <input pInputText id="b-login" maxlength="190" autocomplete="off" spellcheck="false" placeholder="e.g. bf6436001@smtp-brevo.com"
                    [ngModel]="bLogin()" (ngModelChange)="bLogin.set($event)" />
             <small class="hint">In Brevo: SMTP &amp; API, on the SMTP tab.</small></div>
-          <div class="pf"><label for="b-key">SMTP key {{ e.ownAccount ? '' : '*' }}</label>
+          <div class="pf"><label for="b-key">SMTP key @if (!e.ownAccount) { <span class="req">*</span> }</label>
             <input pInputText id="b-key" type="password" maxlength="300" autocomplete="new-password" spellcheck="false"
                    [placeholder]="e.ownAccount ? 'Saved; type to change' : 'From the same page'"
                    [ngModel]="bKey()" (ngModelChange)="bKey.set($event)" />
             <small class="hint">The SMTP key, not an API key. It is saved and never shown again.</small></div>
-          <div class="pf"><label for="b-from">Send from address *</label>
+          <div class="pf"><label for="b-from">Send from address <span class="req">*</span></label>
             <input pInputText id="b-from" type="email" maxlength="254" autocomplete="off" placeholder="e.g. info@yourbrand.com"
                    [ngModel]="bFrom()" (ngModelChange)="bFrom.set($event)" />
             <small class="hint">It must be a sender or domain verified in Brevo (Senders &amp; Domains), or Brevo refuses the mail.</small></div>

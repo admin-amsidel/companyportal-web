@@ -16,6 +16,7 @@
   --brass-dark: #5a3ad9;
   --gold-hi: #c4b5fd;
   --soft: #f7f6fd;
+  --required: #d92d20;
   --display: 'Plus Jakarta Sans', 'Figtree', system-ui, sans-serif;
   --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --radius: 10px;
@@ -140,4 +141,11 @@ h4 {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Required field marker: every label of a field that must be filled ends with <span class="req">*</span>. */
+.req {
+  color: var(--required);
+  font-weight: 700;
+  margin-left: 1px;
 }

@@ -27,12 +27,12 @@ import { PhoneInput, phoneProblem } from '../phone-input';
               [style]="{ width: '680px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false" appendTo="body">
       <div class="grid">
         @if (!customer() && !fixedBrand() && brand.many()) {
-          <div class="pf span"><label for="cu-brand">Brand *</label>
+          <div class="pf span"><label for="cu-brand">Brand <span class="req">*</span></label>
             <p-select inputId="cu-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                       appendTo="body" [(ngModel)]="f.brandId" /></div>
         }
-        <div class="pf"><label for="cu-name">Name *</label><input pInputText id="cu-name" maxlength="150" [(ngModel)]="f.name" /></div>
-        <div class="pf"><label for="cu-ph">Phone * <span class="opt">(one customer per number)</span></label>
+        <div class="pf"><label for="cu-name">Name <span class="req">*</span></label><input pInputText id="cu-name" maxlength="150" [(ngModel)]="f.name" /></div>
+        <div class="pf"><label for="cu-ph">Phone <span class="req">*</span> <span class="opt">(one customer per number)</span></label>
           <app-phone-input inputId="cu-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
         <div class="pf"><label for="cu-ph2">Second phone</label><app-phone-input inputId="cu-ph2" label="second phone" [(ngModel)]="f.phone2" /></div>
         <div class="pf"><label for="cu-mail">Email</label><input pInputText id="cu-mail" maxlength="150" inputmode="email" [(ngModel)]="f.email" /></div>

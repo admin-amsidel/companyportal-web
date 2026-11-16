@@ -97,7 +97,7 @@ import { apiProblem, BLOOD_GROUPS, designationLabel, fromIsoDate, ROLE_LABELS, t
         </div>
         @if (editing()) {
           <div class="edit-grid">
-            <div class="pf"><label for="me-phone">Phone *</label>
+            <div class="pf"><label for="me-phone">Phone <span class="req">*</span></label>
               <app-phone-input inputId="me-phone" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
             <div class="pf"><label for="me-pmail">Personal email</label>
               <input pInputText id="me-pmail" type="email" maxlength="150" inputmode="email" [(ngModel)]="f.personalEmail" /></div>

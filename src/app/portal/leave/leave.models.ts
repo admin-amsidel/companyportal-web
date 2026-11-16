@@ -6,7 +6,8 @@ import { Role, toIsoDate } from '../portal.models';
 
 /** ANNUAL = days every year; GRANTED = days added per person (comp-off, paternity); UNLIMITED = no balance. */
 export type LeaveAllocation = 'ANNUAL' | 'GRANTED' | 'UNLIMITED';
-export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+/** CANCELLED: by the person. REVOKED: approved leave taken back by an owner or admin before it started; both give the days back. */
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'REVOKED';
 
 export const ALLOCATION_LABELS: Record<LeaveAllocation, string> = {
   ANNUAL: 'Days in the plan',
@@ -19,6 +20,7 @@ export const STATUS_LABELS: Record<LeaveStatus, string> = {
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
+  REVOKED: 'Revoked',
 };
 
 /** PrimeNG tag colour per status. */
@@ -27,6 +29,7 @@ export const STATUS_SEVERITY: Record<LeaveStatus, 'warn' | 'success' | 'danger' 
   APPROVED: 'success',
   REJECTED: 'danger',
   CANCELLED: 'secondary',
+  REVOKED: 'secondary',
 };
 
 export interface LeaveType {
@@ -80,6 +83,12 @@ export interface LeaveRequest {
   createdAt: string;
   /** Approver lists only: the person's remaining balance of that type. */
   available: number | null;
+  /** Set when an owner or admin revoked the leave. */
+  revokedByName: string | null;
+  revokedAt: string | null;
+  revokeNote: string | null;
+  /** Approver lists only: I may revoke it now (owner or admin; approved and not started). */
+  canRevoke: boolean;
 }
 
 export interface LeaveGrant {

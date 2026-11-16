@@ -98,15 +98,15 @@ import { ExcelTable } from '../excel-export';
               [style]="{ width: '760px' }" [breakpoints]="{ '900px': 'calc(100vw - 16px)' }" [draggable]="false">
       <div class="grid">
         @if (!editing() && brand.many()) {
-          <div class="pf span"><label for="su-brand">Brand *</label>
+          <div class="pf span"><label for="su-brand">Brand <span class="req">*</span></label>
             <p-select inputId="su-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                       appendTo="body" [ngModel]="f.brandId" (ngModelChange)="f.brandId = $event" /></div>
         }
-        <div class="pf"><label for="su-name">Supplier name *</label><input pInputText id="su-name" maxlength="150" [(ngModel)]="f.name" /></div>
+        <div class="pf"><label for="su-name">Supplier name <span class="req">*</span></label><input pInputText id="su-name" maxlength="150" [(ngModel)]="f.name" /></div>
         <div class="pf"><label for="su-code">Code</label><input pInputText id="su-code" maxlength="20" placeholder="Made for you when empty" [ngModel]="f.code" (ngModelChange)="f.code = $event.toUpperCase()" /></div>
         <div class="pf"><label for="su-person">Contact person</label><input pInputText id="su-person" maxlength="100" [(ngModel)]="f.contactPerson" /></div>
         <div class="pf"><label for="su-loc">Location</label><input pInputText id="su-loc" maxlength="100" placeholder="Town or city" [(ngModel)]="f.location" /></div>
-        <div class="pf"><label for="su-ph">Phone *</label><app-phone-input inputId="su-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
+        <div class="pf"><label for="su-ph">Phone <span class="req">*</span></label><app-phone-input inputId="su-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
         <div class="pf"><label for="su-ph2">Second phone</label><app-phone-input inputId="su-ph2" label="second phone" [(ngModel)]="f.phone2" /></div>
         <div class="pf"><label for="su-mail">Email</label><input pInputText id="su-mail" maxlength="150" inputmode="email" [(ngModel)]="f.email" /></div>
         <div class="pf"><label for="su-web">Website</label><input pInputText id="su-web" maxlength="200" placeholder="https://" [(ngModel)]="f.website" /></div>

@@ -112,14 +112,14 @@ const STATUS: Record<NewsStatus, { label: string; severity: 'success' | 'info' |
     <p-dialog [header]="editing() ? 'Change news' : 'Add news'" [modal]="true" [visible]="open()" (visibleChange)="open.set($event)" [draggable]="false"
               appendTo="body" [style]="{ width: '680px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }">
       <div class="form">
-        <div class="pf"><label for="nw-title">Heading *</label>
+        <div class="pf"><label for="nw-title">Heading <span class="req">*</span></label>
           <input pInputText id="nw-title" maxlength="150" placeholder="e.g. Diwali offer: 15% off all uPVC windows" [ngModel]="title()" (ngModelChange)="title.set($event)" /></div>
         <div class="pf"><label for="nw-body">Description</label>
           <textarea pTextarea id="nw-body" rows="4" maxlength="4000" [autoResize]="true" placeholder="The details: what, for whom, till when, how to claim it"
                     [ngModel]="text()" (ngModelChange)="text.set($event)"></textarea>
           <small class="hint">{{ text().length }} / 4000</small></div>
         <div class="two">
-          <div class="pf"><label for="nw-cat">About *</label>
+          <div class="pf"><label for="nw-cat">About <span class="req">*</span></label>
             <p-select inputId="nw-cat" [options]="categories" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="category()" (ngModelChange)="setCategory($event)">
               <ng-template #item let-c><span class="opt"><i [class]="c.icon" aria-hidden="true"></i> {{ c.label }}</span></ng-template>
             </p-select></div>
@@ -127,7 +127,7 @@ const STATUS: Record<NewsStatus, { label: string; severity: 'success' | 'info' |
             <p-select inputId="nw-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="brandId()" (ngModelChange)="brandId.set($event)" />
             <small class="hint">A brand's news shows to that brand's people only.</small></div>
         </div>
-        <div class="pf"><span class="pf-label" id="nw-aud">For *</span>
+        <div class="pf"><span class="pf-label" id="nw-aud">For <span class="req">*</span></span>
           <p-selectbutton [options]="audiences" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="nw-aud"
                           [ngModel]="audienceV()" (ngModelChange)="audienceV.set($event)" />
           <small class="hint">{{ audienceHint() }}</small>
@@ -135,7 +135,7 @@ const STATUS: Record<NewsStatus, { label: string; severity: 'success' | 'info' |
             <small class="hint warn-hint"><i class="pi pi-info-circle" aria-hidden="true"></i> Not on the public website, so it will not show under its Offers. Choose Public or All to show it there.</small>
           }</div>
         <div class="two">
-          <div class="pf"><label for="nw-from">Shows from *</label>
+          <div class="pf"><label for="nw-from">Shows from <span class="req">*</span></label>
             <p-datepicker inputId="nw-from" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" panelStyleClass="over-dialog" [ngModel]="from()" (ngModelChange)="from.set($event)" /></div>
           <div class="pf"><label for="nw-to">Last day</label>
             <p-datepicker inputId="nw-to" dateFormat="dd/mm/yy" [showIcon]="true" [showClear]="true" appendTo="body" panelStyleClass="over-dialog"

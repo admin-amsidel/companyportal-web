@@ -99,14 +99,14 @@ import { TradeService } from './trade.service';
             <h2>Details</h2>
             <div class="grid">
               @if (!p() && brand.many()) {
-                <div class="pf"><label for="pj-brand">Brand *</label>
+                <div class="pf"><label for="pj-brand">Brand <span class="req">*</span></label>
                   <p-select inputId="pj-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                             [ngModel]="f.brandId()" (ngModelChange)="f.brandId.set($event); f.customerId.set(null); f.agentId.set(null)" /></div>
               }
-              <div class="pf span"><label for="pj-name">Project name *</label>
+              <div class="pf span"><label for="pj-name">Project name <span class="req">*</span></label>
                 <input pInputText id="pj-name" maxlength="150" placeholder="e.g. Varghese villa – all windows" [disabled]="!editable()"
                        [ngModel]="f.name()" (ngModelChange)="f.name.set($event); dirty.set(true)" /></div>
-              <div class="pf span"><label for="pj-cust">Customer *</label>
+              <div class="pf span"><label for="pj-cust">Customer <span class="req">*</span></label>
                 <div class="with-btn">
                   <p-select inputId="pj-cust" [options]="customerOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label,phone"
                             placeholder="Search name or phone" [disabled]="!editable()" [ngModel]="f.customerId()" (ngModelChange)="f.customerId.set($event); dirty.set(true)" />
@@ -316,9 +316,9 @@ import { TradeService } from './trade.service';
     <p-dialog [header]="taskEditing() ? 'Change task' : 'Add task'" [modal]="true" [visible]="taskOpen()" (visibleChange)="taskOpen.set($event)"
               [style]="{ width: '640px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       <div class="grid">
-        <div class="pf span"><label for="tk-title">Task *</label>
+        <div class="pf span"><label for="tk-title">Task <span class="req">*</span></label>
           <input pInputText id="tk-title" maxlength="200" placeholder="e.g. Measure all openings" [ngModel]="t.title()" (ngModelChange)="t.title.set($event)" /></div>
-        <div class="pf"><label for="tk-reg">Registered on *</label>
+        <div class="pf"><label for="tk-reg">Registered on <span class="req">*</span></label>
           <p-datepicker inputId="tk-reg" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="t.regDate()" (ngModelChange)="t.regDate.set($event)" /></div>
         <div class="pf"><label for="tk-status">Status</label>
           <p-select inputId="tk-status" [options]="taskOptions" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="t.status()" (ngModelChange)="t.status.set($event)" /></div>
@@ -359,7 +359,7 @@ import { TradeService } from './trade.service';
           } @else {
             <fieldset class="commission">
               <legend>Commission for {{ ag.name }}</legend>
-              <div class="pf"><label for="st-amt">Amount * <span class="opt">(0 if none)</span></label>
+              <div class="pf"><label for="st-amt">Amount <span class="req">*</span> <span class="opt">(0 if none)</span></label>
                 <p-inputnumber inputId="st-amt" mode="decimal" [min]="0" [minFractionDigits]="0" [maxFractionDigits]="2" locale="en-IN"
                                [ngModel]="settleAmount()" (ngModelChange)="settleAmount.set($event)" /></div>
               <div class="pf"><label for="st-rem">Remarks</label>

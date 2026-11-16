@@ -164,7 +164,7 @@ type Show = 'ALL' | 'OPEN' | 'SHARED';
     <p-dialog [header]="editing() ? 'Change the update' : 'Post an update'" [modal]="true" [visible]="dlgOpen()" (visibleChange)="dlgOpen.set($event)"
               [draggable]="false" appendTo="body" [style]="{ width: '640px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }">
       <div class="form">
-        <div class="pf"><label for="up-stage">Stage *</label>
+        <div class="pf"><label for="up-stage">Stage <span class="req">*</span></label>
           <p-select inputId="up-stage" [options]="statuses()" optionLabel="label" optionValue="value" appendTo="body" styleClass="stages"
                     [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)">
             <ng-template #selectedItem let-o>
@@ -175,12 +175,12 @@ type Show = 'ALL' | 'OPEN' | 'SHARED';
             </ng-template>
           </p-select>
           <small class="hint">The newest update sets the project's status.</small></div>
-        <div class="pf"><label for="up-title">Title *</label>
+        <div class="pf"><label for="up-title">Title <span class="req">*</span></label>
           <input pInputText id="up-title" maxlength="150" placeholder="e.g. Ground floor windows fixed" [ngModel]="fTitle()" (ngModelChange)="fTitle.set($event)" /></div>
         <div class="pf"><label for="up-desc">What was done</label>
           <textarea pTextarea id="up-desc" rows="4" maxlength="2000" [autoResize]="true" placeholder="Details for the customer: work done, what is next, any visit planned…"
                     [ngModel]="fDesc()" (ngModelChange)="fDesc.set($event)"></textarea></div>
-        <div class="pf"><label for="up-when">Date &amp; time *</label>
+        <div class="pf"><label for="up-when">Date &amp; time <span class="req">*</span></label>
           <p-datepicker inputId="up-when" [showTime]="true" hourFormat="12" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="now()"
                         [ngModel]="fWhen()" (ngModelChange)="fWhen.set($event)" /></div>
         <div class="pf"><span class="pf-label">Photos of the work <small class="muted">(up to 8)</small></span>

@@ -61,7 +61,8 @@ import { money, Period, periodRange, PERIODS, STATUS_LABELS, STATUS_OPTIONS, STA
               <td data-label="Employee" class="stack-full">{{ c.employeeName }}<small class="muted block">{{ c.empNumber }}</small></td>
               <td data-label="Date" class="nowrap">{{ c.meetingDate | date: 'd MMM y' }}</td>
               <td data-label="Customer">{{ c.customerName }}<small class="muted block">{{ c.fromLocation }} → {{ c.toLocation }}</small></td>
-              <td data-label="Km" class="num">{{ c.distanceKm }}@if (c.distanceChanged) { <small class="warn block">changed</small> }</td>
+              <td data-label="Km" class="num">{{ c.distanceKm }}@if (c.distanceChanged) { <small class="warn block">changed</small> }
+                @if (c.gpsShortestKm !== null) { <small class="muted block">GPS {{ c.gpsShortestKm }}–{{ c.gpsLongestKm }}</small> }</td>
               <td data-label="Claimed" class="num">{{ m(c, c.claimedAmount) }}</td>
               <td data-label="Approved" class="num">{{ c.approvedAmount === null ? '—' : m(c, c.approvedAmount) }}</td>
               <td data-label="Status"><p-tag [value]="label(c.status)" [severity]="sev(c.status)" /></td>
@@ -112,10 +113,10 @@ import { money, Period, periodRange, PERIODS, STATUS_LABELS, STATUS_OPTIONS, STA
       @if (settling(); as c) {
         <p class="muted">{{ c.code }} · {{ c.employeeName }} · approved {{ m(c, c.approvedAmount) }}</p>
         <div class="decide">
-          <div class="pf"><label for="s-txn">Transaction ID *</label><input pInputText id="s-txn" maxlength="60" [ngModel]="txn()" (ngModelChange)="txn.set($event)" /></div>
-          <div class="pf"><label for="s-date">Payment date *</label>
+          <div class="pf"><label for="s-txn">Transaction ID <span class="req">*</span></label><input pInputText id="s-txn" maxlength="60" [ngModel]="txn()" (ngModelChange)="txn.set($event)" /></div>
+          <div class="pf"><label for="s-date">Payment date <span class="req">*</span></label>
             <p-datepicker inputId="s-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [ngModel]="payDate()" (ngModelChange)="payDate.set($event)" /></div>
-          <div class="pf"><label for="s-amount">Payment amount *</label>
+          <div class="pf"><label for="s-amount">Payment amount <span class="req">*</span></label>
             <p-inputnumber inputId="s-amount" [min]="0.01" [maxFractionDigits]="2" [prefix]="c.currencySymbol + ' '" [ngModel]="payAmount()" (ngModelChange)="payAmount.set($event)" /></div>
           <div class="pf"><label for="s-remarks">Remarks</label><textarea pTextarea id="s-remarks" rows="2" maxlength="500" [ngModel]="payRemarks()" (ngModelChange)="payRemarks.set($event)"></textarea></div>
         </div>

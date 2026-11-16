@@ -73,7 +73,7 @@
       <div class="start__grid">
         <div class="start__form">
           <div class="pf">
-            <span class="pf-label" id="a-mode-lbl">{{ day() ? 'Where are you working now? *' : 'Where are you working today? *' }}</span>
+            <span class="pf-label" id="a-mode-lbl">{{ day() ? 'Where are you working now?' : 'Where are you working today?' }} <span class="req">*</span></span>
             <p-selectbutton [options]="modes" optionLabel="label" optionValue="value" ariaLabelledBy="a-mode-lbl" styleClass="modes"
                             [ngModel]="mode()" (ngModelChange)="mode.set($event)">
               <ng-template #item let-o><i [class]="o.icon" aria-hidden="true"></i><span>{{ o.label }}</span></ng-template>
@@ -81,7 +81,7 @@
           </div>
           @if (mode() === 'FIELD') {
             <div class="pf">
-              <label for="a-place">Place / client *</label>
+              <label for="a-place">Place / client <span class="req">*</span></label>
               <input pInputText id="a-place" maxlength="120" autocomplete="off" placeholder="e.g. Kumar residence, Kakkanad"
                      [ngModel]="place()" (ngModelChange)="place.set($event)" />
             </div>

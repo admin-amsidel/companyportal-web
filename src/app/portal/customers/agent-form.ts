@@ -26,8 +26,8 @@ import { Agent, AgentsService, bankProblem } from './agents.service';
               [style]="{ width: '600px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false" appendTo="body">
       <p class="muted intro">The agent is added to {{ brandName() || 'the project\\'s brand' }}. A photo can be added later on the Agents page.</p>
       <div class="grid">
-        <div class="pf"><label for="aq-name">Name *</label><input pInputText id="aq-name" maxlength="150" [(ngModel)]="f.name" /></div>
-        <div class="pf"><label for="aq-ph">Phone *</label><app-phone-input inputId="aq-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
+        <div class="pf"><label for="aq-name">Name <span class="req">*</span></label><input pInputText id="aq-name" maxlength="150" [(ngModel)]="f.name" /></div>
+        <div class="pf"><label for="aq-ph">Phone <span class="req">*</span></label><app-phone-input inputId="aq-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
         <div class="pf"><label for="aq-loc">Location</label><input pInputText id="aq-loc" maxlength="100" placeholder="Town or area" [(ngModel)]="f.location" /></div>
         <div class="pf"><label for="aq-upi">UPI ID <span class="opt">(for commission)</span></label>
           <input pInputText id="aq-upi" maxlength="80" placeholder="name@bank" [(ngModel)]="f.upiId" /></div>

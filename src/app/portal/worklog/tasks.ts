@@ -174,7 +174,7 @@ import { ExcelTable } from '../excel-export';
                             [allowEmpty]="false" [ngModel]="formStatus()" (ngModelChange)="formStatus.set($event)" />
           </div>
           <div class="pf span">
-            <label for="t-title">Title *</label>
+            <label for="t-title">Title <span class="req">*</span></label>
             <input pInputText id="t-title" name="title" maxlength="200" placeholder="e.g. Kumar residence: windows and doors"
                    [ngModel]="title()" (ngModelChange)="title.set($event)" />
           </div>
@@ -184,7 +184,7 @@ import { ExcelTable } from '../excel-export';
                       [ngModel]="description()" (ngModelChange)="description.set($event)"></textarea>
           </div>
           <div class="pf">
-            <label for="t-brand">Brand</label>
+            <label for="t-brand">Brand @if (!canPickGroup()) { <span class="req">*</span> }</label>
             <p-select inputId="t-brand" name="brand" [options]="brandOptions()" optionLabel="label" optionValue="value"
                       [showClear]="canPickGroup()" [placeholder]="canPickGroup() ? 'Whole group' : 'Choose a brand'" appendTo="body"
                       [ngModel]="brandId()" (ngModelChange)="setBrand($event)" />

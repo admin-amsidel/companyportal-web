@@ -122,9 +122,9 @@ import { ExcelButton, ExcelColumn } from '../excel-export';
             <small class="hint block">PNG or JPEG, up to {{ limits.text('brandLogo') }}. A square or wide logo on a white background prints best.</small>
           </div>
         </div>
-        <div class="pf span"><label for="b-name">Name *</label>
+        <div class="pf span"><label for="b-name">Name <span class="req">*</span></label>
           <input pInputText id="b-name" maxlength="150" placeholder="e.g. Acme Industries" [ngModel]="name()" (ngModelChange)="name.set($event)" /></div>
-        <div class="pf"><label for="b-code">Code *</label>
+        <div class="pf"><label for="b-code">Code <span class="req">*</span></label>
           <input pInputText id="b-code" maxlength="10" placeholder="e.g. AD" [ngModel]="code()" (ngModelChange)="code.set($event.toUpperCase())" />
           <small class="hint">Also the start of employee numbers (DW0001).</small></div>
         <div class="pf"><label for="b-cat">Category</label>
@@ -209,10 +209,10 @@ import { ExcelButton, ExcelColumn } from '../excel-export';
           @if (editing(); as b) {
             <p class="hint span rz-note">Bills of {{ b.code }} paid online (cards and UPI, Product portal › Pay bill) go to this brand's Razorpay account, and settle to the
               bank account linked to it in Razorpay. Keys: Razorpay Dashboard › Account & Settings › API keys. The secret is saved, never shown again.</p>
-            <div class="pf"><label for="b-rzk">Key ID</label>
+            <div class="pf"><label for="b-rzk">Key ID <span class="req">*</span></label>
               <input pInputText id="b-rzk" maxlength="40" autocomplete="off" spellcheck="false" placeholder="rzp_live_…"
                      [ngModel]="rzKey()" (ngModelChange)="rzKey.set($event.trim())" /></div>
-            <div class="pf"><label for="b-rzs">Key secret</label>
+            <div class="pf"><label for="b-rzs">Key secret @if (!b.razorpayReady || rzKey() !== b.razorpayKeyId) { <span class="req">*</span> }</label>
               <input pInputText id="b-rzs" type="password" maxlength="60" autocomplete="new-password" spellcheck="false"
                      [placeholder]="b.razorpayReady ? 'Saved; type to change' : 'From the same page'" [ngModel]="rzSecret()" (ngModelChange)="rzSecret.set($event.trim())" /></div>
             <div class="span qr-acts">

@@ -264,10 +264,10 @@ type LineShow = 'OPEN' | 'MATCHED' | 'ALL';
               <p class="p-empty">Choose a brand above: each brand has its own bank account.</p>
             } @else {
               <div class="bal-form">
-                <div class="pf"><label for="rc-bal-month">Month *</label>
+                <div class="pf"><label for="rc-bal-month">Month <span class="req">*</span></label>
                   <p-datepicker inputId="rc-bal-month" view="month" dateFormat="MM yy" [showIcon]="true" [maxDate]="today" [readonlyInput]="true"
                                 [ngModel]="balMonth()" (ngModelChange)="setBalMonth($event)" /></div>
-                <div class="pf"><label for="rc-bal">Balance *</label>
+                <div class="pf"><label for="rc-bal">Balance <span class="req">*</span></label>
                   <p-inputnumber inputId="rc-bal" mode="currency" currency="INR" locale="en-IN" placeholder="₹0.00"
                                  [ngModel]="balAmount()" (ngModelChange)="balAmount.set($event)" /></div>
                 <div class="pf grow-field"><label for="rc-bal-note">Note</label>
@@ -476,14 +476,14 @@ type LineShow = 'OPEN' | 'MATCHED' | 'ALL';
           <p class="muted">{{ s.number }} · {{ s.customerName }}{{ s.projectCode ? ' · ' + s.projectCode : '' }}: billed {{ money(s.total) }}, received {{ money(s.paid) }}.
             The amount below is kept as a discount (an expense) of this customer, invoice and project; the invoice is settled at {{ money(s.total) }} and its PDF stays as issued.</p>
           <div class="two">
-            <div class="pf"><label for="wo-amt">Amount *</label>
+            <div class="pf"><label for="wo-amt">Amount <span class="req">*</span></label>
               <p-inputnumber inputId="wo-amt" mode="currency" currency="INR" locale="en-IN" [min]="0" [max]="s.due" [ngModel]="woAmount()" (ngModelChange)="woAmount.set($event)" />
               <small class="hint">Up to {{ money(s.due) }}</small></div>
-            <div class="pf"><label for="wo-date">Date *</label>
+            <div class="pf"><label for="wo-date">Date <span class="req">*</span></label>
               <p-datepicker inputId="wo-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" panelStyleClass="over-dialog"
                             [ngModel]="woDate()" (ngModelChange)="woDate.set($event)" /></div>
           </div>
-          <div class="pf"><label for="wo-rem">Why *</label>
+          <div class="pf"><label for="wo-rem">Why <span class="req">*</span></label>
             <textarea pTextarea id="wo-rem" rows="2" maxlength="1000" [autoResize]="true" placeholder="e.g. Customer asked for an extra discount at handover; agreed by Sibin"
                       [ngModel]="woRemarks()" (ngModelChange)="woRemarks.set($event)"></textarea></div>
           @if (woError()) { <p-message severity="error">{{ woError() }}</p-message> }

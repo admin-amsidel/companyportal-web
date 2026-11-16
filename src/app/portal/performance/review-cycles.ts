@@ -59,11 +59,11 @@ import { ExcelTable } from '../excel-export';
     <p-dialog [header]="editingId() ? 'Edit cycle' : 'New review cycle'" [modal]="true" [visible]="open()" (visibleChange)="open.set($event)"
               [style]="{ width: '520px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       <div class="form">
-        <div class="pf span"><label for="c-name">Name *</label>
+        <div class="pf span"><label for="c-name">Name <span class="req">*</span></label>
           <input pInputText id="c-name" maxlength="80" placeholder="e.g. FY 2026-27" [ngModel]="name()" (ngModelChange)="name.set($event)" /></div>
-        <div class="pf"><label for="c-from">From *</label>
+        <div class="pf"><label for="c-from">From <span class="req">*</span></label>
           <p-datepicker inputId="c-from" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="from()" (ngModelChange)="from.set($event)" /></div>
-        <div class="pf"><label for="c-to">To *</label>
+        <div class="pf"><label for="c-to">To <span class="req">*</span></label>
           <p-datepicker inputId="c-to" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="from()" [ngModel]="to()" (ngModelChange)="to.set($event)" /></div>
         <div class="pf"><label for="c-brand">For</label>
           <p-select inputId="c-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" [showClear]="true" placeholder="All brands"

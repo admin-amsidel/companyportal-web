@@ -189,12 +189,12 @@ function groupOf(view: View, c: Commission): { key: string; label: string; sub: 
           @if (c.agentBankAccount) { <small class="block">Bank: A/c {{ c.agentBankAccount }} · IFSC {{ c.agentIfsc }}</small> }
           <small class="muted block">{{ c.projectCode }} · {{ c.projectName }}</small></p>
         <div class="grid">
-          <div class="pf span"><label for="cs-status">Status *</label>
+          <div class="pf span"><label for="cs-status">Status <span class="req">*</span></label>
             <p-select inputId="cs-status" [options]="changeOptions" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="s.status()" (ngModelChange)="s.status.set($event)" /></div>
           @if (s.status() === 'SETTLED') {
-            <div class="pf"><label for="cs-txn">Transaction ID *</label>
+            <div class="pf"><label for="cs-txn">Transaction ID <span class="req">*</span></label>
               <input pInputText id="cs-txn" maxlength="60" placeholder="UTR or reference; CASH for cash" [ngModel]="s.transactionId()" (ngModelChange)="s.transactionId.set($event)" /></div>
-            <div class="pf"><label for="cs-date">Date paid *</label>
+            <div class="pf"><label for="cs-date">Date paid <span class="req">*</span></label>
               <p-datepicker inputId="cs-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [ngModel]="s.paidOn()" (ngModelChange)="s.paidOn.set($event)" /></div>
           } @else if (c.status === 'SETTLED') {
             <p-message severity="warn" styleClass="span">Moving this back to Queued clears the transaction ID and date.</p-message>

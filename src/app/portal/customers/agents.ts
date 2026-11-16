@@ -166,14 +166,14 @@ export class AgentPhoto implements OnDestroy {
       </div>
       <div class="grid">
         @if (!editing() && brands().length > 1) {
-          <div class="pf span"><label for="ag-brand">Brand *</label>
+          <div class="pf span"><label for="ag-brand">Brand <span class="req">*</span></label>
             <p-select inputId="ag-brand" [options]="brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand" appendTo="body" [(ngModel)]="f.brandId" /></div>
         }
         @if (editing(); as e) {
           <div class="pf"><label for="ag-code">Agent ID</label><input pInputText id="ag-code" [value]="e.code" disabled /></div>
         }
-        <div class="pf"><label for="ag-name">Name *</label><input pInputText id="ag-name" maxlength="150" [(ngModel)]="f.name" /></div>
-        <div class="pf"><label for="ag-ph">Phone *</label><app-phone-input inputId="ag-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
+        <div class="pf"><label for="ag-name">Name <span class="req">*</span></label><input pInputText id="ag-name" maxlength="150" [(ngModel)]="f.name" /></div>
+        <div class="pf"><label for="ag-ph">Phone <span class="req">*</span></label><app-phone-input inputId="ag-ph" label="phone" [required]="true" [(ngModel)]="f.phone" /></div>
         <div class="pf"><label for="ag-loc">Location</label><input pInputText id="ag-loc" maxlength="100" placeholder="Town or area" [(ngModel)]="f.location" /></div>
         <div class="pf"><label for="ag-upi">UPI ID</label><input pInputText id="ag-upi" maxlength="80" placeholder="name@bank" [(ngModel)]="f.upiId" /></div>
         <div class="pf"><label for="ag-acc">Bank account no</label>

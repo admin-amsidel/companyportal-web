@@ -67,14 +67,14 @@ import { ExcelTable } from '../excel-export';
       <div class="form">
         @if (!editing() && brand.many()) {
           <div class="pf">
-            <label for="ty-brand">Brand *</label>
+            <label for="ty-brand">Brand <span class="req">*</span></label>
             <p-select inputId="ty-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                       appendTo="body" [ngModel]="brandId()" (ngModelChange)="brandId.set($event)" />
           </div>
         }
         <div class="two">
           <div class="pf">
-            <label for="ty-code">Code *</label>
+            <label for="ty-code">Code <span class="req">*</span></label>
             <input pInputText id="ty-code" maxlength="20" placeholder="UPVC" [ngModel]="code()" (ngModelChange)="code.set($event.toUpperCase())" />
           </div>
           <div class="pf">
@@ -83,7 +83,7 @@ import { ExcelTable } from '../excel-export';
           </div>
         </div>
         <div class="pf">
-          <label for="ty-name">Name *</label>
+          <label for="ty-name">Name <span class="req">*</span></label>
           <input pInputText id="ty-name" maxlength="100" placeholder="e.g. Hardware" [ngModel]="name()" (ngModelChange)="name.set($event)" />
         </div>
         <div class="pf">

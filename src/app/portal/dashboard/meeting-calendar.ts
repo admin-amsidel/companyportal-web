@@ -141,12 +141,12 @@ function lengthLabel(minutes: number): string {
     <p-dialog [visible]="formOpen()" (visibleChange)="!$event && formOpen.set(false)" [modal]="true" [draggable]="false" [style]="{ width: '560px' }"
               [breakpoints]="{ '640px': 'calc(100vw - 16px)' }" [header]="editing() ? 'Change meeting' : 'Add meeting'">
       <div class="form">
-        <div class="pf wide"><label for="mt-title">Title *</label>
+        <div class="pf wide"><label for="mt-title">Title <span class="req">*</span></label>
           <input pInputText id="mt-title" maxlength="200" [ngModel]="title()" (ngModelChange)="title.set($event)" /></div>
         <div class="when wide">
-          <div class="pf"><label for="mt-date">Date *</label>
+          <div class="pf"><label for="mt-date">Date <span class="req">*</span></label>
             <p-datepicker inputId="mt-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="minDate()" [ngModel]="date()" (ngModelChange)="date.set($event)" /></div>
-          <div class="pf"><label for="mt-start">Start time *</label>
+          <div class="pf"><label for="mt-start">Start time <span class="req">*</span></label>
             <p-select inputId="mt-start" [options]="startOptions()" optionLabel="label" optionValue="value" placeholder="Choose" dropdownIcon="pi pi-clock" appendTo="body" [scrollHeight]="'240px'"
                       [ngModel]="start()" (ngModelChange)="setStart($event)" /></div>
           <div class="pf"><label for="mt-end">End time</label>

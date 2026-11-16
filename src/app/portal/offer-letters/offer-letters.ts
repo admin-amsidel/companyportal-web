@@ -118,50 +118,50 @@ interface SplitRow {
       }
       <h3>Letter</h3>
       <div class="grid">
-        <div class="pf"><label for="ol-brand">Brand *</label>
+        <div class="pf"><label for="ol-brand">Brand <span class="req">*</span></label>
           <p-select inputId="ol-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" placeholder="Choose a brand" appendTo="body"
                     [disabled]="editing()?.status === 'ISSUED'" [ngModel]="brandId()" (ngModelChange)="setBrand($event)" /></div>
-        <div class="pf"><label for="ol-issue">Issued date *</label>
+        <div class="pf"><label for="ol-issue">Issued date <span class="req">*</span></label>
           <p-datepicker inputId="ol-issue" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="issueDate()" (ngModelChange)="issueDate.set($event)" /></div>
-        <div class="pf wide"><label for="ol-company">Company name *</label>
+        <div class="pf wide"><label for="ol-company">Company name <span class="req">*</span></label>
           <input pInputText id="ol-company" maxlength="200" [ngModel]="companyName()" (ngModelChange)="companyName.set($event)" /></div>
-        <div class="pf wide"><label for="ol-address">Company address *</label>
+        <div class="pf wide"><label for="ol-address">Company address <span class="req">*</span></label>
           <textarea pTextarea id="ol-address" rows="2" maxlength="500" [ngModel]="companyAddress()" (ngModelChange)="companyAddress.set($event)"></textarea></div>
-        <div class="pf wide"><label for="ol-intro">About the company *</label>
+        <div class="pf wide"><label for="ol-intro">About the company <span class="req">*</span></label>
           <textarea pTextarea id="ol-intro" rows="3" maxlength="4000" [ngModel]="companyIntro()" (ngModelChange)="companyIntro.set($event)"></textarea></div>
-        <div class="pf"><label for="ol-phone">Contact number *</label>
+        <div class="pf"><label for="ol-phone">Contact number <span class="req">*</span></label>
           <app-phone-input inputId="ol-phone" label="contact number" [required]="true" [ngModel]="contactNumber()" (ngModelChange)="contactNumber.set($event ?? '')" /></div>
-        <div class="pf"><label for="ol-email">Contact email *</label>
+        <div class="pf"><label for="ol-email">Contact email <span class="req">*</span></label>
           <input pInputText id="ol-email" type="email" maxlength="150" [ngModel]="contactEmail()" (ngModelChange)="contactEmail.set($event)" /></div>
       </div>
 
       <h3>Candidate and role</h3>
       <div class="grid">
-        <div class="pf"><label for="ol-name">Candidate's name *</label>
+        <div class="pf"><label for="ol-name">Candidate's name <span class="req">*</span></label>
           <input pInputText id="ol-name" maxlength="150" [ngModel]="candidateName()" (ngModelChange)="candidateName.set($event)" /></div>
-        <div class="pf"><label for="ol-role">Designation *</label>
+        <div class="pf"><label for="ol-role">Designation <span class="req">*</span></label>
           <p-select inputId="ol-role" [options]="positionOptions()" [editable]="true" placeholder="Choose or type" appendTo="body" [maxlength]="150"
                     [ngModel]="designation()" (ngModelChange)="designation.set($event ?? '')" /></div>
         <div class="pf wide"><label for="ol-cand-addr">Candidate's address</label>
           <textarea pTextarea id="ol-cand-addr" rows="2" maxlength="500" [ngModel]="candidateAddress()" (ngModelChange)="candidateAddress.set($event)"></textarea></div>
-        <div class="pf"><label for="ol-join">Joining date *</label>
+        <div class="pf"><label for="ol-join">Joining date <span class="req">*</span></label>
           <p-datepicker inputId="ol-join" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="joiningDate()" (ngModelChange)="setJoining($event)" /></div>
-        <div class="pf"><label for="ol-start">Start date *</label>
+        <div class="pf"><label for="ol-start">Start date <span class="req">*</span></label>
           <p-datepicker inputId="ol-start" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="joiningDate() ?? undefined" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" /></div>
-        <div class="pf"><label for="ol-hours">Working hours in a week *</label>
+        <div class="pf"><label for="ol-hours">Working hours in a week <span class="req">*</span></label>
           <p-inputnumber inputId="ol-hours" [min]="1" [max]="168" [maxFractionDigits]="2" [ngModel]="weeklyHours()" (ngModelChange)="weeklyHours.set($event)" /></div>
       </div>
 
       <h3>Salary</h3>
       <div class="grid">
-        <div class="pf"><label for="ol-annual">Annual package ({{ symbol() }}) *</label>
+        <div class="pf"><label for="ol-annual">Annual package ({{ symbol() }}) <span class="req">*</span></label>
           <p-inputnumber inputId="ol-annual" [min]="0" [maxFractionDigits]="2" locale="en-IN" [ngModel]="annualPackage()" (ngModelChange)="annualPackage.set($event)" /></div>
         <div class="pf"><label for="ol-monthly">Monthly salary ({{ symbol() }}), optional</label>
           <p-inputnumber inputId="ol-monthly" [min]="0" [maxFractionDigits]="2" locale="en-IN" [ngModel]="monthlySalary()" (ngModelChange)="monthlySalary.set($event)" />
           @if (annualPackage(); as a) { <small class="hint">Annual ÷ 12 = {{ money(a / 12, symbol()) }}</small> }</div>
       </div>
       <div class="split">
-        <span class="pf-label">Package split *</span>
+        <span class="pf-label">Package split <span class="req">*</span></span>
         @for (s of split(); track s.key) {
           <div class="split-row">
             <input pInputText maxlength="100" placeholder="e.g. Basic" [attr.aria-label]="'Component ' + ($index + 1)" [ngModel]="s.name" (ngModelChange)="setSplit(s.key, { name: $event })" />
@@ -179,15 +179,15 @@ interface SplitRow {
       </div>
 
       <h3>Clauses and rules about joining</h3>
-      <div class="pf"><label for="ol-clauses">One clause on each line *</label>
+      <div class="pf"><label for="ol-clauses">One clause on each line <span class="req">*</span></label>
         <textarea pTextarea id="ol-clauses" rows="9" maxlength="8000" [ngModel]="clauses()" (ngModelChange)="clauses.set($event)"></textarea>
         <small class="hint">A starting text, please have it checked. Each brand's next letter starts from its last issued one.</small></div>
 
       <h3>Issued by</h3>
       <div class="grid">
-        <div class="pf"><label for="ol-by">Name *</label>
+        <div class="pf"><label for="ol-by">Name <span class="req">*</span></label>
           <input pInputText id="ol-by" maxlength="150" [ngModel]="issuedByName()" (ngModelChange)="issuedByName.set($event)" /></div>
-        <div class="pf"><label for="ol-by-role">Their designation *</label>
+        <div class="pf"><label for="ol-by-role">Their designation <span class="req">*</span></label>
           <input pInputText id="ol-by-role" maxlength="150" [ngModel]="issuedByDesignation()" (ngModelChange)="issuedByDesignation.set($event)" /></div>
       </div>
 

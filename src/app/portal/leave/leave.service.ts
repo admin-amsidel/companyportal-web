@@ -99,6 +99,11 @@ export class LeaveService {
     return this.http.post<LeaveRequest>(`${LEAVE}/requests/${id}/reject`, { note });
   }
 
+  /** Owners and admins: take back approved leave that has not started; the days go back to the balance. */
+  revoke(id: number, note: string): Observable<LeaveRequest> {
+    return this.http.post<LeaveRequest>(`${LEAVE}/requests/${id}/revoke`, { note });
+  }
+
   team(): Observable<TeamMember[]> {
     return this.http.get<TeamMember[]>(`${LEAVE}/team`);
   }

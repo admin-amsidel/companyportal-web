@@ -19,6 +19,8 @@ export interface TravelClaim {
   id: number; code: string; employeeId: number; employeeName: string; empNumber: string; brandCode: string | null; currencySymbol: string;
   method: 'MANUAL' | 'GPS'; status: TravelStatus; customerId: number | null; customerCode: string | null; customerName: string; meetingDate: string; fromLocation: string | null; toLocation: string | null;
   meetingPoint: string | null; notes: string | null; distanceKm: number | null; shortestKm: number | null; longestKm: number | null;
+  /** GPS trips: the route as tracked when completed; shortestKm/longestKm follow later stop changes. */
+  gpsShortestKm: number | null; gpsLongestKm: number | null;
   distanceSource: 'GOOGLE' | 'STRAIGHT_LINE' | null; distanceChanged: boolean; ratePerKm: number | null; travelAmount: number | null;
   foodExpense: number | null; otherExpense: number | null; claimedAmount: number | null; submittedAt: string | null; approvedAmount: number | null;
   decisionRemarks: string | null; decidedByName: string | null; decidedAt: string | null; waitingSince: string | null; transactionId: string | null;

@@ -90,13 +90,13 @@ interface Configuration {
               [header]="editing() ? 'Change ' + editing()!.code : 'New configuration'">
       <div class="form">
         @if (!editing()) {
-          <div class="pf"><label for="cfg-code">Code *</label>
+          <div class="pf"><label for="cfg-code">Code <span class="req">*</span></label>
             <input pInputText id="cfg-code" maxlength="60" placeholder="e.g. SESSION_MAX_MINUTES" [ngModel]="code()" (ngModelChange)="code.set($event)" />
             <small class="muted">Letters, numbers and _. It is saved in capitals and cannot be changed later.</small></div>
         }
         <div class="pf"><label for="cfg-desc">Description</label>
           <input pInputText id="cfg-desc" maxlength="300" [ngModel]="description()" (ngModelChange)="description.set($event)" /></div>
-        <div class="pf"><label for="cfg-value">Value *</label>
+        <div class="pf"><label for="cfg-value">Value <span class="req">*</span></label>
           @if (editing()?.choices; as choices) {
             <p-select inputId="cfg-value" [options]="choices" appendTo="body" [ngModel]="value()" (ngModelChange)="value.set($event)" />
           } @else {

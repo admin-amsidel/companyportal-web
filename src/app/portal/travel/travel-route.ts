@@ -189,7 +189,7 @@ export class TravelRouteMap {
           }
           @if (editing() === s.sequence) {
             <div class="edit">
-              <div class="pf"><label [for]="'st-c-' + s.sequence">Coordinates (latitude, longitude)</label>
+              <div class="pf"><label [for]="'st-c-' + s.sequence">Coordinates (latitude, longitude) <span class="req">*</span></label>
                 <input pInputText [id]="'st-c-' + s.sequence" placeholder="10.12345, 76.30000" [ngModel]="coords()" (ngModelChange)="coords.set($event)" /></div>
               <div class="pf"><label [for]="'st-l-' + s.sequence">Place</label>
                 <input pInputText [id]="'st-l-' + s.sequence" maxlength="200" [ngModel]="label()" (ngModelChange)="label.set($event)" /></div>

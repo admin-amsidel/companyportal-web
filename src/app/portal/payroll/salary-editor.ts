@@ -68,14 +68,14 @@ import { PayrollService } from './payroll.service';
           </div>
           <div class="row2">
             <div class="pf">
-              <label for="s-from">Effective from *</label>
+              <label for="s-from">Effective from <span class="req">*</span></label>
               <p-datepicker inputId="s-from" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [disabled]="!s.editable"
                             [minDate]="fyStart()" [maxDate]="fyEnd()" [ngModel]="from()" (ngModelChange)="from.set($event)" />
               <small class="hint">{{ months() }} month{{ months() === 1 ? '' : 's' }} paid in {{ s.fyLabel }}
                 ({{ s.fyStart | date: 'd MMM y' }} to {{ s.fyEnd | date: 'd MMM y' }})</small>
             </div>
             <div class="pf">
-              <label for="s-days">Working days in a month *</label>
+              <label for="s-days">Working days in a month <span class="req">*</span></label>
               <p-inputnumber inputId="s-days" [min]="1" [max]="31" [showButtons]="true" [disabled]="!s.editable"
                              [ngModel]="workingDays()" (ngModelChange)="workingDays.set($event)" />
               <small class="hint">Usually {{ defaultDays }}. A day's pay (gross ÷ working days) = {{ money(perDay()) }}, taken off for each LOP day.</small>

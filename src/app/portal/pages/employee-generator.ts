@@ -57,23 +57,23 @@ interface Superior {
     @if (error()) { <p-message severity="error" styleClass="page-message">{{ error() }}</p-message> }
 
     <section class="p-card form">
-      <div class="pf"><label for="g-brand">Brand *</label>
+      <div class="pf"><label for="g-brand">Brand <span class="req">*</span></label>
         <p-select inputId="g-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" placeholder="Choose the brand" appendTo="body" [ngModel]="brandId()" (ngModelChange)="setBrand($event)" />
         @if (next()) { <small class="muted">The next employee number is <b>{{ next() }}</b>.</small> }</div>
-      <div class="pf"><label for="g-desig">Designation *</label>
+      <div class="pf"><label for="g-desig">Designation <span class="req">*</span></label>
         <p-select inputId="g-desig" [options]="designationOptions()" optionLabel="label" optionValue="value" [filter]="true" filterPlaceholder="Search" placeholder="Choose the designation" appendTo="body"
                   [emptyMessage]="brandId() ? 'No designations for this brand' : 'Choose the brand first'" [ngModel]="designationId()" (ngModelChange)="designationId.set($event)" /></div>
       <div class="pf"><label for="g-boss">Reports to</label>
         <p-select inputId="g-boss" [options]="superiorOptions()" optionLabel="label" optionValue="value" [filter]="true" filterPlaceholder="Search people" appendTo="body"
                   [emptyMessage]="brandId() ? 'Nobody to choose' : 'Choose the brand first'" [ngModel]="reportsToId()" (ngModelChange)="reportsToId.set($event)" />
         <small class="muted">Everyone in this batch reports to this person, who approves their attendance and work log. With nobody, those count at once.</small></div>
-      <div class="pf"><label for="g-count">Number of employees *</label>
+      <div class="pf"><label for="g-count">Number of employees <span class="req">*</span></label>
         <p-inputnumber inputId="g-count" [min]="1" [max]="maxCount" [showButtons]="true" [ngModel]="count()" (ngModelChange)="count.set($event)" />
         <small class="muted">At most {{ maxCount }} at a time.</small></div>
-      <div class="pf"><label for="g-pass">Password *</label>
+      <div class="pf"><label for="g-pass">Password <span class="req">*</span></label>
         <p-password inputId="g-pass" [feedback]="false" [toggleMask]="true" autocomplete="new-password" [ngModel]="password()" (ngModelChange)="password.set($event ?? '')" />
         @if (password() && !pinOk()) { <small class="warn">Needs {{ missing() }}.</small> } @else { <small class="muted">The same for all of them: at least 2 letters, 1 special character and 3 numbers.</small> }</div>
-      <div class="pf span"><span class="pf-label" id="g-temp">Is this a temporary password? *</span>
+      <div class="pf span"><span class="pf-label" id="g-temp">Is this a temporary password? <span class="req">*</span></span>
         <p-selectbutton [options]="tempOptions" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="g-temp" [ngModel]="temporary()" (ngModelChange)="temporary.set($event)" />
         @if (temporary() === true) { <small class="muted">They must choose their own password at their first sign-in.</small> }
         @if (temporary() === false) { <small class="muted">Permanent: they can work straight away, with no password change at sign-in.</small> }</div>

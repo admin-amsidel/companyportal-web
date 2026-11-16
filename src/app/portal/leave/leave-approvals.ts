@@ -58,6 +58,7 @@ export class LeaveApprovals implements OnInit {
     { value: 'APPROVED', label: 'Approved' },
     { value: 'REJECTED', label: 'Rejected' },
     { value: 'CANCELLED', label: 'Cancelled' },
+    { value: 'REVOKED', label: 'Revoked' },
     { value: 'ALL', label: 'All' },
   ];
 
@@ -77,8 +78,9 @@ export class LeaveApprovals implements OnInit {
   protected readonly error = signal('');
   protected readonly workingId = signal<number | null>(null);
 
-  // reject dialog
+  // reason dialog: rejecting pending leave, or revoking approved leave that has not started
   protected readonly rejecting = signal<LeaveRequest | null>(null);
+  protected readonly revoking = signal(false);
   protected readonly rejectNote = signal('');
   protected readonly rejectError = signal('');
 
@@ -158,9 +160,10 @@ export class LeaveApprovals implements OnInit {
     this.decide(r, true, '');
   }
 
-  protected startReject(r: LeaveRequest): void {
+  protected startReject(r: LeaveRequest, revoke = false): void {
     this.rejectNote.set('');
     this.rejectError.set('');
+    this.revoking.set(revoke);
     this.rejecting.set(r);
   }
 
@@ -171,7 +174,28 @@ export class LeaveApprovals implements OnInit {
       this.rejectError.set('Give a reason, so the employee knows why.');
       return;
     }
-    this.decide(r, false, this.rejectNote());
+    if (this.revoking()) this.revoke(r, this.rejectNote());
+    else this.decide(r, false, this.rejectNote());
+  }
+
+  private revoke(r: LeaveRequest, note: string): void {
+    this.workingId.set(r.id);
+    this.leave.revoke(r.id, note.trim()).subscribe({
+      next: (done) => {
+        this.workingId.set(null);
+        this.rejecting.set(null);
+        this.toast.add({
+          severity: 'info',
+          summary: 'Leave revoked',
+          detail: `${done.employeeName}, ${done.leaveTypeName}: ${dateRange(done)}. ${days(done.days)} day(s) are back in the balance.`,
+        });
+        this.loadRequests();
+      },
+      error: (err) => {
+        this.workingId.set(null);
+        this.rejectError.set(apiProblem(err).message);
+      },
+    });
   }
 
   protected pickMember(id: number | null): void {

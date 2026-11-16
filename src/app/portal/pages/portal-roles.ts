@@ -88,13 +88,13 @@ const LEVEL_HINTS: Record<string, string> = {
     <p-dialog [header]="editing() ? 'Change ' + editing()!.name : 'New role'" [modal]="true" [visible]="open()" (visibleChange)="open.set($event)" [draggable]="false"
               appendTo="body" [style]="{ width: '560px' }" [breakpoints]="{ '620px': 'calc(100vw - 16px)' }">
       <div class="form">
-        <div class="pf"><label for="r-name">Name *</label>
+        <div class="pf"><label for="r-name">Name <span class="req">*</span></label>
           <input pInputText id="r-name" maxlength="60" placeholder="e.g. Site supervisor, Accountant" [ngModel]="name()" (ngModelChange)="name.set($event)" /></div>
         <div class="pf"><label for="r-brand">Brand</label>
           <p-select inputId="r-brand" [options]="brandOptions()" optionLabel="label" optionValue="value" appendTo="body" [disabled]="!!editing()?.builtIn"
                     [ngModel]="brandId()" (ngModelChange)="brandId.set($event)" />
           <small class="hint">A brand's role is only for that brand's people.</small></div>
-        <div class="pf"><span class="pf-label" id="r-level">Access level *</span>
+        <div class="pf"><span class="pf-label" id="r-level">Access level <span class="req">*</span></span>
           <p-selectbutton [options]="levels" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="r-level" [disabled]="!!editing()?.builtIn"
                           [ngModel]="level()" (ngModelChange)="level.set($event)" />
           <small class="hint">{{ levelHint() }}</small></div>

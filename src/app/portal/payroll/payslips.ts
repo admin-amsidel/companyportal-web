@@ -214,7 +214,7 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
         @if (draft()) {
           <div class="edit-bar">
             <div class="pf">
-              <label for="ps-date">Pay date</label>
+              <label for="ps-date">Pay date <span class="req">*</span></label>
               <p-datepicker inputId="ps-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [showOnFocus]="false"
                             panelStyleClass="over-dialog" styleClass="pay-date" [ngModel]="payDate()"
                             (ngModelChange)="payDate.set($event)" />
@@ -260,12 +260,12 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
               </div>
               @if (s.editable) {
                 <div class="pf">
-                  <label for="pay-date">Credited on</label>
+                  <label for="pay-date">Credited on <span class="req">*</span></label>
                   <p-datepicker inputId="pay-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [showOnFocus]="false"
                                 panelStyleClass="over-dialog" [maxDate]="today" [ngModel]="paidOn()" (ngModelChange)="paidOn.set($event)" />
                 </div>
                 <div class="pf">
-                  <span class="pf-label" id="pay-mode-lbl">Paid by</span>
+                  <span class="pf-label" id="pay-mode-lbl">Paid by <span class="req">*</span></span>
                   <p-selectbutton [options]="modes" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="pay-mode-lbl"
                                   [ngModel]="payMode()" (ngModelChange)="payMode.set($event)" />
                 </div>
@@ -324,7 +324,7 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
         for {{ data()?.label }}. Earnings are paid per working day: monthly ÷ working days × paid days.</p>
       <div class="bulk-form">
         <div class="pf">
-          <label for="gen-days">Working days in {{ data()?.label }}</label>
+          <label for="gen-days">Working days in {{ data()?.label }} <span class="req">*</span></label>
           <p-inputnumber inputId="gen-days" [min]="1" [max]="31" [showButtons]="true" [ngModel]="genDays()"
                          (ngModelChange)="genDays.set($event)" />
           <small class="hint">Usually {{ defaultDays }}. Change it for this month if needed; each payslip can still be changed before publishing.</small>
@@ -342,12 +342,12 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
         The employees will be able to see and download them.</p>
       <div class="bulk-form">
         <div class="pf">
-          <label for="bulk-date">Credited on</label>
+          <label for="bulk-date">Credited on <span class="req">*</span></label>
           <p-datepicker inputId="bulk-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today"
                         [ngModel]="paidOn()" (ngModelChange)="paidOn.set($event)" />
         </div>
         <div class="pf">
-          <span class="pf-label" id="bulk-mode-lbl">Paid by</span>
+          <span class="pf-label" id="bulk-mode-lbl">Paid by <span class="req">*</span></span>
           <p-selectbutton [options]="modes" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="bulk-mode-lbl"
                           [ngModel]="payMode()" (ngModelChange)="payMode.set($event)" />
         </div>

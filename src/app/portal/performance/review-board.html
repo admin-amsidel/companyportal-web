@@ -546,7 +546,7 @@
           (visibleChange)="goalOpen.set($event)" [style]="{ width: '760px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
   <div class="gform">
     <div class="pf span">
-      <span class="pf-label" id="g-type">Type of evaluation *</span>
+      <span class="pf-label" id="g-type">Type of evaluation <span class="req">*</span></span>
       @if (!goalTypes().length) {
         <p-message severity="warn" styleClass="inline-msg">You may not set goals of any type. Ask your admin for a "Goal type" under Performance in Menu access.</p-message>
       }
@@ -564,7 +564,7 @@
       </small>
     </div>
     <div class="pf span">
-      <label for="g-title">Goal *</label>
+      <label for="g-title">Goal <span class="req">*</span></label>
       <input pInputText id="g-title" maxlength="150" [placeholder]="gType() === 'SALES' ? 'e.g. Window & door sales, first half' : 'e.g. Close 10 site projects on time'"
              [ngModel]="gTitle()" (ngModelChange)="gTitle.set($event)" />
     </div>
@@ -574,23 +574,23 @@
     </div>
     @if (gType() === 'SALES' || gType() === 'SALES_ORDER' || gType() === 'MANUAL_SALES') {
       <div class="pf span">
-        <label for="g-target">Target amount *</label>
+        <label for="g-target">Target amount <span class="req">*</span></label>
         <p-inputnumber inputId="g-target" [min]="0" [maxFractionDigits]="2" [prefix]="r.currencySymbol + ' '" locale="en-IN"
                        [ngModel]="gTarget()" (ngModelChange)="gTarget.set($event)" />
       </div>
     }
     <div class="pf">
-      <label for="g-weight">Weightage *</label>
+      <label for="g-weight">Weightage <span class="req">*</span></label>
       <p-inputnumber inputId="g-weight" [min]="1" [max]="100" suffix="%" [ngModel]="gWeight()" (ngModelChange)="gWeight.set($event)" />
       <small class="hint">{{ weightLeft() + (goalId() ? (review().goals.find(x => x.id === goalId())?.weightage ?? 0) : 0) }}% of the review available</small>
     </div>
     <div class="pf">
-      <label for="g-start">From *</label>
+      <label for="g-start">From <span class="req">*</span></label>
       <p-datepicker inputId="g-start" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="cycleMin()" [maxDate]="cycleMax()"
                     [ngModel]="gStart()" (ngModelChange)="gStart.set($event)" />
     </div>
     <div class="pf">
-      <label for="g-end">To *</label>
+      <label for="g-end">To <span class="req">*</span></label>
       <p-datepicker inputId="g-end" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="gStart() ?? cycleMin()" [maxDate]="cycleMax()"
                     [ngModel]="gEnd()" (ngModelChange)="gEnd.set($event)" />
     </div>
@@ -640,17 +640,17 @@
           [visible]="entryOpen()" (visibleChange)="entryOpen.set($event)" [style]="{ width: '560px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
   <div class="gform">
     @if (entryGoal()?.tasks?.length) {
-      <div class="pf span"><label for="e-task">Sub-task *</label>
+      <div class="pf span"><label for="e-task">Sub-task <span class="req">*</span></label>
         <p-select inputId="e-task" [options]="eTaskOptions()" optionLabel="label" optionValue="value" appendTo="body" placeholder="Choose the sub-task"
                   [ngModel]="eTask()" (ngModelChange)="eTask.set($event)" /></div>
     }
-    <div class="pf span"><label for="e-amount">Amount achieved *</label>
+    <div class="pf span"><label for="e-amount">Amount achieved <span class="req">*</span></label>
       <p-inputnumber inputId="e-amount" [min]="0" [maxFractionDigits]="2" [prefix]="r.currencySymbol + ' '" locale="en-IN"
                      [ngModel]="eAmount()" (ngModelChange)="eAmount.set($event)" /></div>
-    <div class="pf"><label for="e-from">From *</label>
+    <div class="pf"><label for="e-from">From <span class="req">*</span></label>
       <p-datepicker inputId="e-from" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="eMin()" [maxDate]="eMax()"
                     [ngModel]="eFrom()" (ngModelChange)="eFrom.set($event)" /></div>
-    <div class="pf"><label for="e-to">To *</label>
+    <div class="pf"><label for="e-to">To <span class="req">*</span></label>
       <p-datepicker inputId="e-to" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="eFrom() ?? eMin()" [maxDate]="eMax()"
                     [ngModel]="eTo()" (ngModelChange)="eTo.set($event)" /></div>
     <div class="pf span"><label for="e-inv">Invoice numbers</label>
@@ -671,11 +671,11 @@
 <p-dialog [header]="skillMode() === 'manager' ? 'Add a skill for ' + r.employee.name : skillId() ? 'Edit skill' : 'Add a skill'" [modal]="true" [visible]="skillOpen()" (visibleChange)="skillOpen.set($event)"
           [style]="{ width: '460px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
   <div class="gform one">
-    <div class="pf"><label for="s-name">Skill *</label>
+    <div class="pf"><label for="s-name">Skill <span class="req">*</span></label>
       <input pInputText id="s-name" maxlength="100" placeholder="e.g. AutoCAD, Client handling" [ngModel]="sName()" (ngModelChange)="sName.set($event)" /></div>
-    <div class="pf"><label for="s-cat">Type</label>
+    <div class="pf"><label for="s-cat">Type <span class="req">*</span></label>
       <p-select inputId="s-cat" [options]="categories" optionLabel="label" optionValue="value" appendTo="body" [ngModel]="sCategory()" (ngModelChange)="sCategory.set($event)" /></div>
-    <div class="pf"><span class="pf-label">{{ skillMode() === 'manager' ? 'Your level for ' + r.employee.name : 'My level' }} *</span>
+    <div class="pf"><span class="pf-label">{{ skillMode() === 'manager' ? 'Your level for ' + r.employee.name : 'My level' }} <span class="req">*</span></span>
       <app-star-input [ngModel]="sLevel()" (ngModelChange)="sLevel.set($event)" ariaLabel="Level" /></div>
     @if (skillMode() === 'manager') {
       <div class="pf"><label for="s-note">Note</label>
@@ -696,7 +696,7 @@
           [style]="{ width: '460px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
   <div class="gform one">
     <p class="muted">{{ r.employee.name }} rates themselves <app-stars [value]="validating()?.selfLevel" [decimals]="0" /></p>
-    <div class="pf"><span class="pf-label">Your level *</span>
+    <div class="pf"><span class="pf-label">Your level <span class="req">*</span></span>
       <app-star-input [ngModel]="vLevel()" (ngModelChange)="vLevel.set($event)" ariaLabel="Your level" /></div>
     <div class="pf"><label for="v-note">Note</label>
       <textarea pTextarea id="v-note" rows="2" [autoResize]="true" maxlength="500" [ngModel]="vNote()" (ngModelChange)="vNote.set($event)"></textarea></div>
@@ -711,12 +711,12 @@
 <p-dialog [header]="manager() ? 'Give an achievement to ' + r.employee.name : 'Add an achievement'" [modal]="true" [visible]="achOpen()"
           (visibleChange)="achOpen.set($event)" [style]="{ width: '520px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
   <div class="gform">
-    <div class="pf span"><label for="a-title">Achievement *</label>
+    <div class="pf span"><label for="a-title">Achievement <span class="req">*</span></label>
       <input pInputText id="a-title" maxlength="120" placeholder="e.g. Team Champ of the quarter" [ngModel]="aTitle()" (ngModelChange)="aTitle.set($event)" /></div>
     <div class="pf"><label for="a-kind">Kind</label>
       <p-select inputId="a-kind" [options]="kinds" optionLabel="label" optionValue="value" [editable]="true" [showClear]="true" appendTo="body"
                 placeholder="Choose or type" [ngModel]="aKind()" (ngModelChange)="aKind.set($event)" /></div>
-    <div class="pf"><label for="a-date">Date *</label>
+    <div class="pf"><label for="a-date">Date <span class="req">*</span></label>
       <p-datepicker inputId="a-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="aDate()" (ngModelChange)="aDate.set($event)" /></div>
     <div class="pf span"><label for="a-details">Details</label>
       <textarea pTextarea id="a-details" rows="3" [autoResize]="true" maxlength="2000" [ngModel]="aDetails()" (ngModelChange)="aDetails.set($event)"></textarea></div>

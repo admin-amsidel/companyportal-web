@@ -27,7 +27,7 @@
       <h2>Sign-in</h2>
       <div class="p-grid">
         <div class="pf">
-          <label for="f-user">User ID *</label>
+          <label for="f-user">User ID <span class="req">*</span></label>
           <input pInputText id="f-user" formControlName="userId" autocomplete="off" autocapitalize="none" spellcheck="false"
                  [invalid]="!!errorFor('userId')" />
           @if (errorFor('userId'); as m) { <small class="error">{{ m }}</small> }
@@ -36,7 +36,7 @@
 
         @if (isNew()) {
           <div class="pf">
-            <label for="f-pin">Temporary PIN *</label>
+            <label for="f-pin">Temporary PIN <span class="req">*</span></label>
             <input pInputText id="f-pin" formControlName="password" autocomplete="new-password" spellcheck="false"
                    [invalid]="!!errorFor('password')" />
             @if (errorFor('password'); as m) { <small class="error">{{ m }}</small> }
@@ -49,7 +49,7 @@
         }
 
         <div class="pf">
-          <label for="f-brand">Brand *</label>
+          <label for="f-brand">Brand <span class="req">*</span></label>
           <p-select inputId="f-brand" formControlName="brandId" [options]="brandOptions()" optionLabel="label" optionValue="value"
                     placeholder="Choose the brand first"
                     [invalid]="!!brandError()" />
@@ -57,7 +57,7 @@
         </div>
 
         <div class="pf">
-          <label for="f-role">Role (portal access) *</label>
+          <label for="f-role">Role (portal access) <span class="req">*</span></label>
           <p-select inputId="f-role" formControlName="userTypeId" [options]="roleOptions()" optionLabel="label" optionValue="value"
                     (onChange)="pickUserType($event.value)" [placeholder]="brandChosen() ? 'Choose the role' : 'Choose the brand first'" />
           @if (isSelf()) { <small class="hint">You cannot change your own role.</small> }
@@ -71,12 +71,12 @@
       <h2>Personal details</h2>
       <div class="p-grid">
         <div class="pf">
-          <label for="f-name">Full name *</label>
+          <label for="f-name">Full name <span class="req">*</span></label>
           <input pInputText id="f-name" formControlName="name" autocomplete="off" [invalid]="!!errorFor('name')" />
           @if (errorFor('name'); as m) { <small class="error">{{ m }}</small> }
         </div>
         <div class="pf">
-          <label for="f-phone">Phone *</label>
+          <label for="f-phone">Phone <span class="req">*</span></label>
           <app-phone-input inputId="f-phone" label="phone" formControlName="phone" [required]="true" />
           @if (submitted() && errorFor('phone'); as m) { <small class="error">{{ m }}</small> }
         </div>
@@ -157,7 +157,7 @@
           @else if (isNew()) { <small class="hint">Leave empty to create the next number for the brand.</small> }
         </div>
         <div class="pf">
-          <label for="f-joined">Joined date *</label>
+          <label for="f-joined">Joined date <span class="req">*</span></label>
           <p-datepicker inputId="f-joined" formControlName="joinedDate" dateFormat="dd/mm/yy" [showIcon]="true"
                         placeholder="dd/mm/yyyy" [invalid]="!!errorFor('joinedDate')" appendTo="body" />
           @if (errorFor('joinedDate'); as m) { <small class="error">{{ m }}</small> }
@@ -227,7 +227,7 @@
       @if (resetError()) { <p-message severity="error" styleClass="page-message">{{ resetError() }}</p-message> }
       <div class="reset">
         <div class="pf">
-          <label for="f-reset">New temporary PIN</label>
+          <label for="f-reset">New temporary PIN <span class="req">*</span></label>
           <input pInputText id="f-reset" [formControl]="resetPin" autocomplete="new-password" spellcheck="false"
                  [invalid]="showResetError()" />
           <ul class="rules" aria-label="PIN rule">

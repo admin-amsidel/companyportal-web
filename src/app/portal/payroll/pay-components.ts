@@ -71,11 +71,11 @@ import { ExcelTable } from '../excel-export';
               (visibleChange)="open.set($event)" [style]="{ width: '480px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }"
               [draggable]="false">
       <div class="form">
-        <div class="pf span"><label for="pc-name">Name *</label>
+        <div class="pf span"><label for="pc-name">Name <span class="req">*</span></label>
           <input pInputText id="pc-name" maxlength="60" placeholder="e.g. Performance bonus" [ngModel]="name()" (ngModelChange)="name.set($event)" /></div>
-        <div class="pf"><label for="pc-code">Code *</label>
+        <div class="pf"><label for="pc-code">Code <span class="req">*</span></label>
           <input pInputText id="pc-code" maxlength="20" placeholder="e.g. BONUS" [ngModel]="code()" (ngModelChange)="code.set($event)" /></div>
-        <div class="pf"><label for="pc-kind">Kind *</label>
+        <div class="pf"><label for="pc-kind">Kind <span class="req">*</span></label>
           <p-select inputId="pc-kind" [options]="kinds" optionLabel="label" optionValue="value" appendTo="body"
                     [disabled]="!!editing()?.inUse" [ngModel]="kind()" (ngModelChange)="kind.set($event)" />
           @if (editing()?.inUse) { <small class="hint">Used in salaries, so its kind stays.</small> }</div>

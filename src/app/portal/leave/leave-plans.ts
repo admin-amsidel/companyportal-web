@@ -91,9 +91,9 @@ interface LineDraft {
               (visibleChange)="!$event && editing.set(null)" [style]="{ width: '760px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       @if (editing()) {
         <div class="dates">
-          <div class="pf"><label for="lp-from">Valid from *</label>
+          <div class="pf"><label for="lp-from">Valid from <span class="req">*</span></label>
             <p-datepicker inputId="lp-from" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="from()" (ngModelChange)="from.set($event)" /></div>
-          <div class="pf"><label for="lp-until">Valid until *</label>
+          <div class="pf"><label for="lp-until">Valid until <span class="req">*</span></label>
             <p-datepicker inputId="lp-until" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [minDate]="from() ?? undefined" [ngModel]="until()" (ngModelChange)="until.set($event)" /></div>
         </div>
         <h3 class="sub">Types of leave</h3>

@@ -84,13 +84,14 @@ import { Fix, money, MyTravel as Mine, Period, periodRange, PERIODS, STATUS_LABE
               <div><span>Worked out from</span><b>{{ t.distanceSource === 'GOOGLE' ? 'Google Maps' : 'GPS points (estimate)' }}</b></div>
             </div>
             <div class="form">
-              <div class="pf"><label for="c-km">Distance to claim (km) *</label>
+              <div class="pf"><label for="c-km">Distance to claim (km) <span class="req">*</span></label>
                 <p-inputnumber inputId="c-km" [min]="0.1" [max]="5000" [maxFractionDigits]="2" [disabled]="!v.canChangeDistance" [ngModel]="cKm()" (ngModelChange)="cKm.set($event)" />
                 @if (!v.canChangeDistance) { <small class="hint">The route's shortest distance. Changing it needs the Change GPS distance tick.</small> }</div>
-              <div class="pf"><label for="c-to">To location *</label><input pInputText id="c-to" maxlength="200" [ngModel]="cTo()" (ngModelChange)="cTo.set($event)" /></div>
-              <div class="pf"><label for="c-mp">Meeting point *</label><input pInputText id="c-mp" maxlength="200" [ngModel]="cPoint()" (ngModelChange)="cPoint.set($event)" /></div>
+              <div class="pf"><label for="c-to">To location <span class="req">*</span></label><input pInputText id="c-to" maxlength="200" [ngModel]="cTo()" (ngModelChange)="cTo.set($event)" /></div>
+              <div class="pf"><label for="c-mp">Meeting point <span class="req">*</span></label><input pInputText id="c-mp" maxlength="200" [ngModel]="cPoint()" (ngModelChange)="cPoint.set($event)" /></div>
               <div class="pf"><label for="c-food">Food expense</label><p-inputnumber inputId="c-food" [min]="0" [maxFractionDigits]="2" [prefix]="v.currencySymbol + ' '" [ngModel]="cFood()" (ngModelChange)="cFood.set($event)" /></div>
               <div class="pf"><label for="c-other">Other expenses</label><p-inputnumber inputId="c-other" [min]="0" [maxFractionDigits]="2" [prefix]="v.currencySymbol + ' '" [ngModel]="cOther()" (ngModelChange)="cOther.set($event)" /></div>
+              <div class="pf span"><label for="c-notes">Notes</label><textarea pTextarea id="c-notes" rows="2" maxlength="500" [ngModel]="cNotes()" (ngModelChange)="cNotes.set($event)"></textarea></div>
             </div>
             <p class="calc">{{ cKm() || 0 }} km × {{ m(v.ratePerKm) }} = {{ m(travelOf(cKm())) }} + food {{ m(cFood() || 0) }} + other {{ m(cOther() || 0) }} = <b>{{ m(totalOf(cKm(), cFood(), cOther())) }}</b></p>
             <div class="row">
@@ -120,7 +121,7 @@ import { Fix, money, MyTravel as Mine, Period, periodRange, PERIODS, STATUS_LABE
               <td data-label="Date" class="nowrap">{{ c.meetingDate | date: 'd MMM y' }}</td>
               <td data-label="Customer" class="stack-full">{{ c.customerName }}</td>
               <td data-label="Route">{{ c.fromLocation }} → {{ c.toLocation }}<small class="muted block">{{ c.meetingPoint }}</small></td>
-              <td data-label="Km" class="num">{{ c.distanceKm }}</td>
+              <td data-label="Km" class="num">{{ c.distanceKm }}@if (c.gpsShortestKm !== null) { <small class="muted block">GPS {{ c.gpsShortestKm }}–{{ c.gpsLongestKm }}</small> }</td>
               <td data-label="Claimed" class="num">{{ m(c.claimedAmount) }}</td>
               <td data-label="Approved" class="num">{{ c.approvedAmount === null ? '—' : m(c.approvedAmount) }}</td>
               <td data-label="Status"><p-tag [value]="label(c.status)" [severity]="sev(c.status)" /></td>
@@ -145,52 +146,69 @@ import { Fix, money, MyTravel as Mine, Period, periodRange, PERIODS, STATUS_LABE
     <p-dialog header="Manual travel entry" [modal]="true" [visible]="manualOpen()" (visibleChange)="manualOpen.set($event)" [draggable]="false" appendTo="body"
               [style]="{ width: '620px' }" [breakpoints]="{ '700px': 'calc(100vw - 16px)' }">
       <div class="form">
-        <div class="pf span"><label for="m-cust">Customer name *</label>
+        <div class="pf span"><label for="m-cust">Customer name <span class="req">*</span></label>
           <p-autocomplete inputId="m-cust" [suggestions]="customerOptions()" (completeMethod)="findCustomers($event.query)" optionLabel="name" [forceSelection]="false"
                           [dropdown]="true" [minLength]="0" [delay]="200" appendTo="body" styleClass="cust" placeholder="Search the customers, or type a new name" [maxlength]="150"
-                          [ngModel]="customerValue()" (ngModelChange)="pickCustomer($event)">
+                          [invalid]="!!fe().customerName" [ngModel]="customerValue()" (ngModelChange)="pickCustomer($event)">
             <ng-template #item let-c><div class="opt"><b>{{ c.name }}</b><small>{{ c.code }}@if (c.phone) { · {{ c.phone }} }@if (c.location) { · {{ c.location }} }</small></div></ng-template>
             <ng-template #empty><div class="opt"><small>Not in the project portal's customers: the name you type is used.</small></div></ng-template>
           </p-autocomplete>
+          @if (fe().customerName; as e) { <small class="err">{{ e }}</small> }
           <small class="hint">@if (mCustomerId()) { From the project portal's customers. } @else { Not in the list? Type the customer's name. }</small></div>
-        <div class="pf"><label for="m-date">Meeting date *</label>
-          <p-datepicker inputId="m-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [ngModel]="mDate()" (ngModelChange)="mDate.set($event)" /></div>
-        <div class="pf"><label for="m-km">Total km covered *</label><p-inputnumber inputId="m-km" [min]="0.1" [max]="5000" [maxFractionDigits]="2" [ngModel]="mKm()" (ngModelChange)="mKm.set($event)" /></div>
-        <div class="pf"><label for="m-from">From location *</label><input pInputText id="m-from" maxlength="200" [ngModel]="mFrom()" (ngModelChange)="mFrom.set($event)" /></div>
-        <div class="pf"><label for="m-to">To location *</label><input pInputText id="m-to" maxlength="200" [ngModel]="mTo()" (ngModelChange)="mTo.set($event)" /></div>
-        <div class="pf span"><label for="m-point">Meeting point *</label><input pInputText id="m-point" maxlength="200" [ngModel]="mPoint()" (ngModelChange)="mPoint.set($event)" /></div>
-        <div class="pf"><label for="m-food">Food expense</label><p-inputnumber inputId="m-food" [min]="0" [maxFractionDigits]="2" [prefix]="symbol() + ' '" [ngModel]="mFood()" (ngModelChange)="mFood.set($event)" /></div>
-        <div class="pf"><label for="m-other">Other expenses</label><p-inputnumber inputId="m-other" [min]="0" [maxFractionDigits]="2" [prefix]="symbol() + ' '" [ngModel]="mOther()" (ngModelChange)="mOther.set($event)" /></div>
-        <div class="pf span"><label for="m-notes">Notes</label><textarea pTextarea id="m-notes" rows="2" maxlength="500" [ngModel]="mNotes()" (ngModelChange)="mNotes.set($event)"></textarea></div>
+        <div class="pf"><label for="m-date">Meeting date <span class="req">*</span></label>
+          <p-datepicker inputId="m-date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [invalid]="!!fe().meetingDate" [ngModel]="mDate()" (ngModelChange)="mDate.set($event); ok('meetingDate')" />
+          @if (fe().meetingDate; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf"><label for="m-km">Total km covered <span class="req">*</span></label><p-inputnumber inputId="m-km" [min]="0.1" [max]="5000" [maxFractionDigits]="2" [invalid]="!!fe().distanceKm" [ngModel]="mKm()" (ngModelChange)="mKm.set($event); ok('distanceKm')" />
+          @if (fe().distanceKm; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf"><label for="m-from">From location <span class="req">*</span></label><input pInputText id="m-from" maxlength="200" [invalid]="!!fe().fromLocation" [ngModel]="mFrom()" (ngModelChange)="mFrom.set($event); ok('fromLocation')" />
+          @if (fe().fromLocation; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf"><label for="m-to">To location <span class="req">*</span></label><input pInputText id="m-to" maxlength="200" [invalid]="!!fe().toLocation" [ngModel]="mTo()" (ngModelChange)="mTo.set($event); ok('toLocation')" />
+          @if (fe().toLocation; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf span"><label for="m-point">Meeting point <span class="req">*</span></label><input pInputText id="m-point" maxlength="200" [invalid]="!!fe().meetingPoint" [ngModel]="mPoint()" (ngModelChange)="mPoint.set($event); ok('meetingPoint')" />
+          @if (fe().meetingPoint; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf"><label for="m-food">Food expense</label><p-inputnumber inputId="m-food" [min]="0" [maxFractionDigits]="2" [prefix]="symbol() + ' '" [invalid]="!!fe().foodExpense" [ngModel]="mFood()" (ngModelChange)="mFood.set($event); ok('foodExpense')" />
+          @if (fe().foodExpense; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf"><label for="m-other">Other expenses</label><p-inputnumber inputId="m-other" [min]="0" [maxFractionDigits]="2" [prefix]="symbol() + ' '" [invalid]="!!fe().otherExpense" [ngModel]="mOther()" (ngModelChange)="mOther.set($event); ok('otherExpense')" />
+          @if (fe().otherExpense; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf span"><label for="m-notes">Notes</label><textarea pTextarea id="m-notes" rows="2" maxlength="500" [invalid]="!!fe().notes" [ngModel]="mNotes()" (ngModelChange)="mNotes.set($event); ok('notes')"></textarea>
+          @if (fe().notes; as e) { <small class="err">{{ e }}</small> }</div>
       </div>
       <p class="calc">{{ mKm() || 0 }} km × {{ m(d()?.ratePerKm ?? 0) }} = {{ m(travelOf(mKm())) }} + food {{ m(mFood() || 0) }} + other {{ m(mOther() || 0) }} = <b>{{ m(totalOf(mKm(), mFood(), mOther())) }}</b></p>
-      @if (formError()) { <p-message severity="error" styleClass="dlg-msg">{{ formError() }}</p-message> }
       <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="manualOpen.set(false)" />
-        <p-button label="Submit for approval" icon="pi pi-send" [loading]="busy()" (onClick)="saveManual()" />
+        <div class="dlg-foot">
+          @if (formError()) { <div class="foot-msg"><p-message severity="error" size="small">{{ formError() }}</p-message></div> }
+          <p-button label="Cancel" [text]="true" (onClick)="manualOpen.set(false)" />
+          <p-button label="Submit for approval" icon="pi pi-send" [loading]="busy()" (onClick)="saveManual()" />
+        </div>
       </ng-template>
     </p-dialog>
 
     <p-dialog header="Start a GPS trip" [modal]="true" [visible]="startOpen()" (visibleChange)="startOpen.set($event)" [draggable]="false" appendTo="body"
               [style]="{ width: '560px' }" [breakpoints]="{ '620px': 'calc(100vw - 16px)' }">
       <div class="form">
-        <div class="pf span"><label for="s-cust">Customer name *</label>
+        <div class="pf span"><label for="s-cust">Customer name <span class="req">*</span></label>
           <p-autocomplete inputId="s-cust" [suggestions]="customerOptions()" (completeMethod)="findCustomers($event.query)" optionLabel="name" [forceSelection]="false"
                           [dropdown]="true" [minLength]="0" [delay]="200" appendTo="body" styleClass="cust" placeholder="Search the customers, or type a new name" [maxlength]="150"
-                          [ngModel]="customerValue()" (ngModelChange)="pickCustomer($event)">
+                          [invalid]="!!fe().customerName" [ngModel]="customerValue()" (ngModelChange)="pickCustomer($event)">
             <ng-template #item let-c><div class="opt"><b>{{ c.name }}</b><small>{{ c.code }}@if (c.phone) { · {{ c.phone }} }@if (c.location) { · {{ c.location }} }</small></div></ng-template>
             <ng-template #empty><div class="opt"><small>Not in the project portal's customers: the name you type is used.</small></div></ng-template>
           </p-autocomplete>
+          @if (fe().customerName; as e) { <small class="err">{{ e }}</small> }
           <small class="hint">@if (mCustomerId()) { From the project portal's customers. } @else { Not in the list? Type the customer's name. }</small></div>
-        <div class="pf span"><label for="s-from">Starting from *</label><input pInputText id="s-from" maxlength="200" placeholder="e.g. Kochi office" [ngModel]="mFrom()" (ngModelChange)="mFrom.set($event)" /></div>
-        <div class="pf span"><label for="s-point">Meeting point</label><input pInputText id="s-point" maxlength="200" [ngModel]="mPoint()" (ngModelChange)="mPoint.set($event)" /></div>
-        <div class="pf span"><label for="s-notes">Notes</label><textarea pTextarea id="s-notes" rows="2" maxlength="500" [ngModel]="mNotes()" (ngModelChange)="mNotes.set($event)"></textarea></div>
+        <div class="pf span"><label for="s-from">Starting from <span class="req">*</span></label><input pInputText id="s-from" maxlength="200" placeholder="e.g. Kochi office" [invalid]="!!fe().fromLocation" [ngModel]="mFrom()" (ngModelChange)="mFrom.set($event); ok('fromLocation')" />
+          @if (fe().fromLocation; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf span"><label for="s-point">Meeting point</label><input pInputText id="s-point" maxlength="200" [invalid]="!!fe().meetingPoint" [ngModel]="mPoint()" (ngModelChange)="mPoint.set($event); ok('meetingPoint')" />
+          @if (fe().meetingPoint; as e) { <small class="err">{{ e }}</small> }</div>
+        <div class="pf span"><label for="s-notes">Notes</label><textarea pTextarea id="s-notes" rows="2" maxlength="500" [invalid]="!!fe().notes" [ngModel]="mNotes()" (ngModelChange)="mNotes.set($event); ok('notes')"></textarea>
+          @if (fe().notes; as e) { <small class="err">{{ e }}</small> }</div>
       </div>
       <small class="muted">Your current GPS location is taken as the starting point.</small>
-      @if (formError()) { <p-message severity="error" styleClass="dlg-msg">{{ formError() }}</p-message> }
       <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="startOpen.set(false)" />
-        <p-button label="Start trip" icon="pi pi-map-marker" [loading]="busy()" (onClick)="start()" />
+        <div class="dlg-foot">
+          @if (formError()) { <div class="foot-msg"><p-message severity="error" size="small">{{ formError() }}</p-message></div> }
+          <p-button label="Cancel" [text]="true" (onClick)="startOpen.set(false)" />
+          <p-button label="Start trip" icon="pi pi-map-marker" [loading]="busy()" (onClick)="start()" />
+        </div>
       </ng-template>
     </p-dialog>
 
@@ -217,6 +235,9 @@ import { Fix, money, MyTravel as Mine, Period, periodRange, PERIODS, STATUS_LABE
     .form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 16px; }
     .form .span { grid-column: 1 / -1; }
     :host ::ng-deep .form .p-inputnumber, :host ::ng-deep .form .p-datepicker { width: 100%; }
+    .err { color: var(--p-red-500, #dc2626); font-size: .8rem; }
+    .dlg-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; width: 100%; }
+    .foot-msg { flex: 1 1 260px; min-width: 0; text-align: left; }
     .calc { margin: 12px 0 4px; padding: 10px 12px; background: var(--accent-softer); border-radius: 8px; font-size: .92rem; }
     .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
     .muted { color: var(--muted); } .block { display: block; }
@@ -236,6 +257,8 @@ export class MyTravel implements OnInit {
   protected readonly error = signal('');
   protected readonly busy = signal(false);
   protected readonly formError = signal('');
+  /** The server's message for each field it refused, keyed by the request's field name. */
+  protected readonly fe = signal<FieldErrors>({});
   protected readonly viewing = signal<TravelClaim | null>(null);
   protected readonly period = signal<Period>('MONTH');
   protected readonly anchor = signal(new Date());
@@ -251,7 +274,8 @@ export class MyTravel implements OnInit {
   /** What the box shows: the picked customer, or the name typed. */
   protected readonly customerValue = computed<TravelCustomer | string>(() =>
     this.mCustomerId() ? (this.customerOptions().find((c) => c.id === this.mCustomerId()) ?? this.mCustomer()) : this.mCustomer());
-  protected readonly mDate = signal<Date | null>(new Date());
+  /** Starts empty: the person picks the meeting date (an earlier trip must not quietly become today). */
+  protected readonly mDate = signal<Date | null>(null);
   protected readonly mFrom = signal('');
   protected readonly mTo = signal('');
   protected readonly mPoint = signal('');
@@ -266,6 +290,8 @@ export class MyTravel implements OnInit {
   protected readonly cPoint = signal('');
   protected readonly cFood = signal<number | null>(null);
   protected readonly cOther = signal<number | null>(null);
+  /** Filled with the notes given when the trip started; sent with the claim like a manual entry's. */
+  protected readonly cNotes = signal('');
 
   ngOnInit(): void {
     this.load();
@@ -282,6 +308,7 @@ export class MyTravel implements OnInit {
           this.cKm.set(t.distanceKm);
           this.cTo.set(t.toLocation ?? '');
           this.cPoint.set(t.meetingPoint ?? '');
+          this.cNotes.set(t.notes ?? '');
         }
       },
       error: (e) => this.error.set(apiProblem(e).message),
@@ -301,8 +328,8 @@ export class MyTravel implements OnInit {
   }
 
   private reset(): void {
-    this.formError.set('');
-    this.mCustomer.set(''); this.mCustomerId.set(null); this.mDate.set(new Date()); this.mFrom.set(''); this.mTo.set(''); this.mPoint.set('');
+    this.formError.set(''); this.fe.set({});
+    this.mCustomer.set(''); this.mCustomerId.set(null); this.mDate.set(null); this.mFrom.set(''); this.mTo.set(''); this.mPoint.set('');
     this.mKm.set(null); this.mFood.set(null); this.mOther.set(null); this.mNotes.set('');
   }
 
@@ -313,12 +340,24 @@ export class MyTravel implements OnInit {
   /** A customer from the list, or text: a typed name drops any customer picked before. */
   protected pickCustomer(v: TravelCustomer | string | null): void {
     if (v && typeof v === 'object') {
+      this.ok('customerName');
       this.mCustomerId.set(v.id);
       this.mCustomer.set(v.name);
     } else {
+      if ((v ?? '') !== this.mCustomer()) this.ok('customerName');
       this.mCustomerId.set(null);
       this.mCustomer.set(v ?? '');
     }
+  }
+
+  /** A field was changed: its mark goes, and the message goes once no field is marked. */
+  protected ok(field: TravelField): void {
+    const cur = this.fe();
+    if (!(field in cur)) return;
+    const rest = { ...cur };
+    delete rest[field];
+    this.fe.set(rest);
+    if (!Object.keys(rest).length) this.formError.set('');
   }
 
   protected openManual(): void { this.reset(); this.manualOpen.set(true); }
@@ -364,7 +403,7 @@ export class MyTravel implements OnInit {
     // the place typed is where the trip ended; nothing typed = back at the office
     this.api.complete(t.id, this.stopLabel().trim() || 'Back at the office', fix).subscribe({
       next: (c) => {
-        this.cKm.set(c.distanceKm); this.cTo.set(c.toLocation ?? ''); this.cPoint.set(c.meetingPoint ?? ''); this.cFood.set(null); this.cOther.set(null);
+        this.cKm.set(c.distanceKm); this.cTo.set(c.toLocation ?? ''); this.cPoint.set(c.meetingPoint ?? ''); this.cFood.set(null); this.cOther.set(null); this.cNotes.set(c.notes ?? '');
         this.stopLabel.set('');
         this.done('Trip complete', `Route ${c.shortestKm}–${c.longestKm} km: confirm the distance and send it`);
       },
@@ -380,7 +419,7 @@ export class MyTravel implements OnInit {
 
   protected confirm(t: TravelClaim): void {
     this.busy.set(true);
-    this.api.confirm(t.id, { distanceKm: this.cKm(), toLocation: this.cTo(), meetingPoint: this.cPoint(), foodExpense: this.cFood(), otherExpense: this.cOther() }).subscribe({
+    this.api.confirm(t.id, { distanceKm: this.cKm(), toLocation: this.cTo(), meetingPoint: this.cPoint(), foodExpense: this.cFood(), otherExpense: this.cOther(), notes: this.cNotes() }).subscribe({
       next: (c) => { this.cKm.set(null); this.done(`${c.code} sent for approval`, `${this.m(c.claimedAmount)} for ${c.distanceKm} km`); },
       error: (e) => this.failed(e),
     });
@@ -417,10 +456,20 @@ export class MyTravel implements OnInit {
     this.busy.set(false);
     const p = apiProblem(e as never);
     const msg = Object.values(p.fields)[0] ?? p.message;
-    this.formError.set(msg);
+    // in a dialog each field shows its own message, so the footer only sums up when there are several
+    this.formError.set(Object.keys(p.fields).length > 1 ? p.message : msg);
+    this.fe.set(p.fields);
+    // the message sits by the buttons; also bring the first marked field into view
+    setTimeout(() => document.querySelector('.p-dialog .p-invalid')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     if (!this.manualOpen() && !this.startOpen()) this.toast.add({ severity: 'error', summary: 'Not saved', detail: msg });
   }
 }
+
+/** The request fields the manual entry and trip forms send, as the server names them in its field errors. */
+type TravelField =
+  | 'customerName' | 'meetingDate' | 'distanceKm' | 'fromLocation' | 'toLocation' | 'meetingPoint' | 'foodExpense' | 'otherExpense' | 'notes';
+/** The server's message per refused field (named keys, so templates can read fe().meetingDate). */
+type FieldErrors = Partial<Record<TravelField, string>>;
 
 function iso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

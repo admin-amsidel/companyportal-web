@@ -57,17 +57,17 @@ import { ExcelButton, ExcelColumn } from '../excel-export';
 
       <form class="add-holiday" (ngSubmit)="add()" novalidate>
         <div class="pf">
-          <label [for]="kind() + '-date'">Date</label>
+          <label [for]="kind() + '-date'">Date <span class="req">*</span></label>
           <p-datepicker [inputId]="kind() + '-date'" name="date" dateFormat="dd/mm/yy" [showIcon]="true" placeholder="Choose a date"
                         appendTo="body" [ngModel]="newDate()" (ngModelChange)="newDate.set($event)" />
         </div>
         <div class="pf">
-          <label [for]="kind() + '-name'">Holiday</label>
+          <label [for]="kind() + '-name'">Holiday <span class="req">*</span></label>
           <input pInputText [id]="kind() + '-name'" name="name" maxlength="100" [placeholder]="placeholder()"
                  [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
         </div>
         <div class="pf">
-          <label [for]="kind() + '-brand'">Brand *</label>
+          <label [for]="kind() + '-brand'">Brand <span class="req">*</span></label>
           <p-select [inputId]="kind() + '-brand'" name="brand" [options]="brandOptions()" optionLabel="label" optionValue="value"
                     placeholder="Choose the brand" [ngModel]="newBrand()" (ngModelChange)="newBrand.set($event)" />
         </div>

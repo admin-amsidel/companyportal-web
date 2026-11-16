@@ -49,7 +49,7 @@
     <h2>Apply for leave</h2>
     <form class="apply" (ngSubmit)="submit()" novalidate>
       <div class="pf">
-        <label for="ml-type">Type of leave</label>
+        <label for="ml-type">Type of leave <span class="req">*</span></label>
         <p-select inputId="ml-type" name="type" [options]="typeOptions()" optionLabel="label" optionValue="value"
                   optionDisabled="disabled" placeholder="Choose…" [ngModel]="typeId()" (ngModelChange)="pickType($event)" />
       </div>
@@ -57,7 +57,7 @@
       @if (selected(); as type) {
         @if (type.restrictedDatesOnly) {
           <div class="pf">
-            <label for="ml-rh">Holiday</label>
+            <label for="ml-rh">Holiday <span class="req">*</span></label>
             <p-select inputId="ml-rh" name="rh" [options]="holidayOptions()" optionLabel="label" optionValue="value"
                       placeholder="Choose a date from the list…" emptyMessage="No restricted holidays listed yet"
                       [ngModel]="holidayDate()" (ngModelChange)="holidayDate.set($event)" />
@@ -65,13 +65,13 @@
         } @else {
           <div class="dates">
             <div class="pf">
-              <label for="ml-from">From</label>
+              <label for="ml-from">From <span class="req">*</span></label>
               <p-datepicker inputId="ml-from" name="from" dateFormat="dd/mm/yy" [showIcon]="true" [minDate]="minDate()"
                             [maxDate]="maxDate()" [disabledDays]="[0]" placeholder="dd/mm/yyyy" appendTo="body"
                             [ngModel]="from()" (ngModelChange)="setFrom($event)" />
             </div>
             <div class="pf">
-              <label for="ml-to">To</label>
+              <label for="ml-to">To <span class="req">*</span></label>
               <p-datepicker inputId="ml-to" name="to" dateFormat="dd/mm/yy" [showIcon]="true" [minDate]="from() ?? minDate()"
                             [maxDate]="maxDate()" [disabledDays]="[0]" placeholder="dd/mm/yyyy" appendTo="body"
                             [ngModel]="to()" (ngModelChange)="setTo($event)" />
@@ -124,8 +124,12 @@
           <td data-label="Note" class="note stack-full">
             @if (r.reason) { <span class="block-line">{{ r.reason }}</span> }
             @if (r.decisionNote) { <span class="block-line">“{{ r.decisionNote }}”</span> }
-            @if (r.decidedByName && r.status !== 'PENDING' && r.status !== 'CANCELLED') {
+            @if (r.decidedByName && r.status !== 'PENDING' && r.status !== 'CANCELLED' && r.status !== 'REVOKED') {
               <small class="block-line muted">{{ statusLabel(r.status) }} by {{ r.decidedByName }}</small>
+            }
+            @if (r.status === 'REVOKED') {
+              @if (r.revokeNote) { <span class="block-line">“{{ r.revokeNote }}”</span> }
+              <small class="block-line muted">Approved by {{ r.decidedByName }}, revoked by {{ r.revokedByName }}; the days are back in your balance</small>
             }
           </td>
           <td class="act stack-end">

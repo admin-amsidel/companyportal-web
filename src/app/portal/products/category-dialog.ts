@@ -30,7 +30,7 @@ import { AccountsService, MoneyTypes } from './accounts.service';
       <section class="form" [class.form--edit]="!!editing()">
         <h3>{{ editing() ? 'Change “' + editing()!.label + '”' : 'Add a category' }}</h3>
         <div class="row">
-          <div class="pf grow"><label for="ct-name">Name *</label>
+          <div class="pf grow"><label for="ct-name">Name <span class="req">*</span></label>
             <input pInputText id="ct-name" maxlength="80" placeholder="e.g. Office supplies" [ngModel]="label()" (ngModelChange)="label.set($event)" (keyup.enter)="save()" /></div>
           <div class="pf"><span class="pf-label" id="ct-side">Money</span>
             <p-selectbutton [options]="sides" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="ct-side"

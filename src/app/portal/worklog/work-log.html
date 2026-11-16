@@ -214,20 +214,20 @@
           <h3>{{ editingId() ? 'Edit task' : 'Add a task' }}</h3>
           <div class="entry__grid">
             <div class="pf">
-              <label for="e-task">Task ID *</label>
+              <label for="e-task">Task ID <span class="req">*</span></label>
               <p-select inputId="e-task" name="task" [options]="taskOptions()" optionLabel="label" optionValue="value"
                         [filter]="true" filterPlaceholder="Search your tasks" placeholder="Choose a task assigned to you"
                         emptyMessage="No open tasks are assigned to you yet; ask your admin" appendTo="body"
                         [ngModel]="taskId()" (ngModelChange)="taskId.set($event)" />
             </div>
             <div class="pf">
-              <label for="e-hours">Hours</label>
+              <label for="e-hours">Hours <span class="req">*</span></label>
               <p-inputnumber inputId="e-hours" name="hours" [min]="0.25" [max]="24" [step]="0.25" [showButtons]="true"
                              [minFractionDigits]="0" [maxFractionDigits]="2" placeholder="e.g. 2.5"
                              [ngModel]="hours()" (ngModelChange)="hours.set($event)" />
             </div>
             <div class="pf span">
-              <label for="e-desc">What was done</label>
+              <label for="e-desc">What was done <span class="req">*</span></label>
               <textarea pTextarea id="e-desc" name="desc" rows="2" maxlength="1000" [autoResize]="true"
                         [ngModel]="description()" (ngModelChange)="description.set($event)"></textarea>
             </div>
@@ -236,21 +236,21 @@
                 <small class="sale-for">Manual Sales worklog@if (t.customerName) { · {{ t.customerName }} }@if (t.projectName) { · {{ t.projectName }} }@if (t.agentName) { · Agent {{ t.agentName }} }</small>
               </div>
               <div class="pf span">
-                <label for="e-stage">Status of the task *</label>
+                <label for="e-stage">Status of the task <span class="req">*</span></label>
                 <p-select inputId="e-stage" name="stage" [options]="stageOptions()" optionLabel="name" optionValue="code" placeholder="Choose the status" appendTo="body"
                           [ngModel]="stageCode()" (ngModelChange)="stageCode.set($event)" />
               </div>
               @if (stageKind()) {
                 <div class="pf">
-                  <label for="e-doc">{{ stageKindLabel() }} number *</label>
+                  <label for="e-doc">{{ stageKindLabel() }} number <span class="req">*</span></label>
                   <input pInputText id="e-doc" name="docNumber" maxlength="60" [ngModel]="docNumber()" (ngModelChange)="docNumber.set($event)" />
                 </div>
                 <div class="pf">
-                  <label for="e-docdate">{{ stageKindLabel() }} date *</label>
+                  <label for="e-docdate">{{ stageKindLabel() }} date <span class="req">*</span></label>
                   <p-datepicker inputId="e-docdate" name="docDate" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [ngModel]="docDate()" (ngModelChange)="docDate.set($event)" />
                 </div>
                 <div class="pf span">
-                  <label for="e-amount">{{ stageKindLabel() }} amount *</label>
+                  <label for="e-amount">{{ stageKindLabel() }} amount <span class="req">*</span></label>
                   <p-inputnumber inputId="e-amount" name="docAmount" [min]="0" [maxFractionDigits]="2" [prefix]="t.currencySymbol + ' '" locale="en-IN"
                                  [ngModel]="docAmount()" (ngModelChange)="docAmount.set($event)" />
                 </div>

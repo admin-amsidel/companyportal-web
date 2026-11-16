@@ -111,17 +111,17 @@ type Period = 'ALL' | 'MONTH' | 'DATES';
           <div class="pf span check"><p-checkbox inputId="ms-perf" [binary]="true" [ngModel]="fromGoal()" (ngModelChange)="setFromGoal($event)" />
             <label for="ms-perf">Choose from Team performance <span class="muted">(a task for a team member's goal)</span></label></div>
           @if (fromGoal()) {
-            <div class="pf"><label for="ms-gperson">Employee *</label>
+            <div class="pf"><label for="ms-gperson">Employee <span class="req">*</span></label>
               <p-select inputId="ms-gperson" [options]="goalPeopleOptions()" optionLabel="label" optionValue="value" [filter]="true" placeholder="Whose goal"
                         appendTo="body" [ngModel]="goalPersonId()" (ngModelChange)="setGoalPerson($event)" /></div>
-            <div class="pf"><label for="ms-goal">Goal *</label>
+            <div class="pf"><label for="ms-goal">Goal <span class="req">*</span></label>
               <p-select inputId="ms-goal" [options]="goalOptions()" optionLabel="label" optionValue="value" [filter]="true" appendTo="body"
                         [placeholder]="goalPersonId() ? (goalsLoading() ? 'Loading…' : 'Choose the goal') : 'Choose the employee first'"
                         [emptyMessage]="goalsLoading() ? 'Loading…' : 'No goals in an open review cycle'" [disabled]="!goalPersonId()"
                         [ngModel]="goalId()" (ngModelChange)="pickGoal($event)" /></div>
           }
         }
-        <div class="pf span"><label for="ms-title">Title *</label>
+        <div class="pf span"><label for="ms-title">Title <span class="req">*</span></label>
           <input pInputText id="ms-title" maxlength="200" [readonly]="titleFromGoal()" [class.ro]="titleFromGoal()"
                  [ngModel]="title()" (ngModelChange)="title.set($event)" />
           @if (titleFromGoal()) { <small class="muted">The goal's name; untick Team performance to type your own.</small> }</div>

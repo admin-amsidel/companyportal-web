@@ -89,8 +89,18 @@ export class TravelMonths {
       <dt>From</dt><dd>{{ c.fromLocation || '—' }}</dd>
       <dt>To</dt><dd>{{ c.toLocation || '—' }}</dd>
       <dt>Meeting point</dt><dd>{{ c.meetingPoint || '—' }}</dd>
-      <dt>Distance</dt><dd>{{ c.distanceKm ?? '—' }} km
-        @if (c.shortestKm !== null) { <small class="muted">· route {{ c.shortestKm }}–{{ c.longestKm }} km ({{ c.distanceSource === 'GOOGLE' ? 'Google Maps' : 'estimated from GPS' }})@if (c.distanceChanged) {, changed by the employee}</small> }</dd>
+      @if (c.method === 'GPS') {
+        <!-- all three kept: what GPS tracked, the route now (after any stop was moved), and what the person claimed -->
+        <dt>Distance claimed</dt><dd><b>{{ c.distanceKm ?? '—' }} km</b>
+          <small class="muted">· {{ c.distanceChanged ? 'typed in by the employee' : 'as worked out from GPS' }}</small></dd>
+        <dt>GPS tracked</dt><dd>@if (c.gpsShortestKm !== null) { shortest {{ c.gpsShortestKm }} km · longest {{ c.gpsLongestKm }} km
+          <small class="muted">({{ c.distanceSource === 'GOOGLE' ? 'Google Maps' : 'estimated from GPS points' }})</small> } @else { — }</dd>
+        @if (routeMoved(c)) {
+          <dt>Route after stop changes</dt><dd>shortest {{ c.shortestKm }} km · longest {{ c.longestKm }} km</dd>
+        }
+      } @else {
+        <dt>Distance</dt><dd>{{ c.distanceKm ?? '—' }} km <small class="muted">· typed in</small></dd>
+      }
       <dt>Rate</dt><dd>{{ m(c.ratePerKm) }} per km</dd>
       <dt>Travel</dt><dd>{{ m(c.travelAmount) }}</dd>
       <dt>Food</dt><dd>{{ m(c.foodExpense) }}</dd>
@@ -105,7 +115,7 @@ export class TravelMonths {
         <dt>Settled</dt><dd><b>{{ m(c.paymentAmount) }}</b> on {{ c.paymentDate | date: 'd MMM y' }} · {{ c.transactionId }}
           <small class="block">By {{ c.settledByName }}@if (c.settlementRemarks) { · {{ c.settlementRemarks }} }</small></dd>
       }
-      @if (c.notes) { <dt>Notes</dt><dd>{{ c.notes }}</dd> }
+      <dt>Notes</dt><dd>{{ c.notes || '—' }}</dd>
     </dl>
     @if (c.stops.length) {
       <h4>Route</h4>
@@ -130,4 +140,8 @@ export class TravelClaimDetails {
   protected label(c: TravelClaim): string { return STATUS_LABELS[c.status]; }
   protected sev(c: TravelClaim) { return STATUS_SEVERITY[c.status]; }
   protected m(v: number | null): string { return money(this.claim().currencySymbol, v); }
+  /** A stop was moved after the trip, so the route now differs from what GPS tracked. */
+  protected routeMoved(c: TravelClaim): boolean {
+    return c.shortestKm !== null && c.gpsShortestKm !== null && (c.shortestKm !== c.gpsShortestKm || c.longestKm !== c.gpsLongestKm);
+  }
 }

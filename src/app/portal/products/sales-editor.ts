@@ -138,14 +138,14 @@ const DEFAULT_TERMS = 'Prices include delivery within the city. 50% advance with
             <div class="cust">
               @if (isNew() && brand.many()) {
                 <div class="pf">
-                  <label for="se-brand">Brand *</label>
+                  <label for="se-brand">Brand <span class="req">*</span></label>
                   <p-select inputId="se-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                             [ngModel]="brandId()" (ngModelChange)="pickBrand($event)" />
                   <small class="hint">Items and customers of this brand are listed.</small>
                 </div>
               }
               <div class="pf grow">
-                <label for="se-cust">Customer *</label>
+                <label for="se-cust">Customer <span class="req">*</span></label>
                 <div class="with-btn">
                   <p-select inputId="se-cust" [options]="customerOptions()" optionLabel="label" optionValue="value" [filter]="true"
                             filterBy="label,phone" placeholder="Search name or phone" [disabled]="!editable() || !brandId()"
@@ -159,7 +159,7 @@ const DEFAULT_TERMS = 'Prices include delivery within the city. 50% advance with
                 }
               </div>
               <div class="pf">
-                <label for="se-date">{{ invoice() ? 'Invoice date' : order() ? 'Order date' : 'Date' }} *</label>
+                <label for="se-date">{{ invoice() ? 'Invoice date' : order() ? 'Order date' : 'Date' }} <span class="req">*</span></label>
                 <p-datepicker inputId="se-date" dateFormat="dd/mm/yy" [showIcon]="true" [disabled]="!editable()" [ngModel]="docDate()" (ngModelChange)="docDate.set($event); dirty.set(true)" />
               </div>
               @if (quote()) {
@@ -230,11 +230,11 @@ const DEFAULT_TERMS = 'Prices include delivery within the city. 50% advance with
                     @if (lineNote(l); as n) { <small class="note" [class.warn]="n.warn">{{ n.text }}</small> }
                   </div>
                   <div class="line__nums">
-                    <div class="pf"><label [for]="'q' + l.key">Qty</label>
+                    <div class="pf"><label [for]="'q' + l.key">Qty <span class="req">*</span></label>
                       <p-inputnumber [inputId]="'q' + l.key" [min]="0" [maxFractionDigits]="2" [disabled]="!editable()" [ngModel]="l.quantity" (ngModelChange)="patch(l.key, { quantity: $event })" /></div>
                     <div class="pf"><label [for]="'u' + l.key">Unit</label>
                       <input pInputText [id]="'u' + l.key" maxlength="20" [disabled]="!editable()" [ngModel]="l.unit" (ngModelChange)="patch(l.key, { unit: $event })" /></div>
-                    <div class="pf"><label [for]="'r' + l.key">Rate</label>
+                    <div class="pf"><label [for]="'r' + l.key">Rate <span class="req">*</span></label>
                       <p-inputnumber [inputId]="'r' + l.key" mode="currency" [currency]="cur()" [locale]="curLocale()" [min]="0" [disabled]="!editable()" [ngModel]="l.rate" (ngModelChange)="patch(l.key, { rate: $event })" /></div>
                     <div class="amt"><span>Amount</span><b>{{ money(amount(l)) }}</b></div>
                   </div>
@@ -331,7 +331,7 @@ const DEFAULT_TERMS = 'Prices include delivery within the city. 50% advance with
               [style]="{ width: '460px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       <p class="muted">{{ order() ? 'The customer called the order off. It stays in the list as cancelled; the quotation can be ordered again.'
         : 'Its items go back to stock and it stays in the list as cancelled. Refund any payments first.' }}</p>
-      <div class="pf"><label for="se-why">Reason *</label>
+      <div class="pf"><label for="se-why">Reason <span class="req">*</span></label>
         <input pInputText id="se-why" maxlength="300" placeholder="e.g. Order changed; billed again as …" [ngModel]="cancelReason()" (ngModelChange)="cancelReason.set($event)" /></div>
       <ng-template #footer>
         <p-button label="Keep it" [text]="true" (onClick)="cancelOpen.set(false)" />

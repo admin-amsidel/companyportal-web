@@ -34,7 +34,7 @@ import { StaffService } from '../staff.service';
                      [ngModel]="account()" (ngModelChange)="account.set($event)" />
             </div>
             <div class="pf">
-              <label for="bd-ifsc">IFSC code</label>
+              <label for="bd-ifsc">IFSC code @if (account().trim()) { <span class="req">*</span> }</label>
               <input pInputText id="bd-ifsc" maxlength="11" autocomplete="off" placeholder="HDFC0001234"
                      [ngModel]="ifsc()" (ngModelChange)="ifsc.set($event.toUpperCase())" />
             </div>

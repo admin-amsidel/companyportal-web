@@ -29,9 +29,9 @@ import { ExcelButton, ExcelColumn } from '../excel-export';
               appendTo="body" [style]="{ width: '680px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }">
       <section class="form" [class.form--edit]="!!editing()">
         <h3>{{ editing() ? 'Change “' + editing()!.name + '”' : 'Add a user type' }}</h3>
-        <div class="pf"><label for="ut-name">Name *</label>
+        <div class="pf"><label for="ut-name">Name <span class="req">*</span></label>
           <input pInputText id="ut-name" maxlength="60" placeholder="e.g. Accountant, Site supervisor" [ngModel]="name()" (ngModelChange)="name.set($event)" /></div>
-        <div class="pf"><span class="pf-label" id="ut-level">Access level *</span>
+        <div class="pf"><span class="pf-label" id="ut-level">Access level <span class="req">*</span></span>
           <p-selectbutton [options]="levels" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="ut-level"
                           [disabled]="!!editing()?.builtIn" [ngModel]="level()" (ngModelChange)="level.set($event)" />
           <small class="hint">{{ levelHint(level()) }} Its menus are set on this page like any user type.</small></div>

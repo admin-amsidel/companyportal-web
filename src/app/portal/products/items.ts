@@ -136,13 +136,13 @@ type Show = 'ALL' | 'LOW' | 'OUT' | 'INACTIVE';
       <div class="grid">
         @if (!editing() && brand.many()) {
           <div class="pf span">
-            <label for="it-brand">Brand *</label>
+            <label for="it-brand">Brand <span class="req">*</span></label>
             <p-select inputId="it-brand" [options]="brand.brands()" optionLabel="name" optionValue="id" placeholder="Choose the brand"
                       appendTo="body" [ngModel]="f.brandId()" (ngModelChange)="f.brandId.set($event); f.typeId.set(null); f.supplierId.set(null)" />
           </div>
         }
         <div class="pf">
-          <label for="it-type">Product type *</label>
+          <label for="it-type">Product type <span class="req">*</span></label>
           <p-select inputId="it-type" [options]="formTypes()" optionLabel="label" optionValue="value" placeholder="Choose" appendTo="body"
                     [filter]="true" [ngModel]="f.typeId()" (ngModelChange)="f.typeId.set($event)" />
         </div>
@@ -152,11 +152,11 @@ type Show = 'ALL' | 'LOW' | 'OUT' | 'INACTIVE';
                     [filter]="true" [showClear]="true" [ngModel]="f.supplierId()" (ngModelChange)="f.supplierId.set($event)" />
         </div>
         <div class="pf">
-          <label for="it-code">Item code *</label>
+          <label for="it-code">Item code <span class="req">*</span></label>
           <input pInputText id="it-code" maxlength="30" placeholder="UPVC-SW-01" [ngModel]="f.code()" (ngModelChange)="f.code.set($event.toUpperCase())" />
         </div>
         <div class="pf">
-          <label for="it-name">Item name *</label>
+          <label for="it-name">Item name <span class="req">*</span></label>
           <input pInputText id="it-name" maxlength="150" placeholder="uPVC sliding window" [ngModel]="f.name()" (ngModelChange)="f.name.set($event)" />
         </div>
         <div class="pf">
@@ -180,13 +180,13 @@ type Show = 'ALL' | 'LOW' | 'OUT' | 'INACTIVE';
         </div>
         <fieldset class="prices span">
           <legend>Prices (₹ each)</legend>
-          <div class="pf"><label for="it-sp">Supplier price *</label>
+          <div class="pf"><label for="it-sp">Supplier price <span class="req">*</span></label>
             <p-inputnumber inputId="it-sp" mode="currency" currency="INR" locale="en-IN" [min]="0" [ngModel]="f.supplierPrice()" (ngModelChange)="f.supplierPrice.set($event ?? 0)" /></div>
-          <div class="pf"><label for="it-mrp">MRP *</label>
+          <div class="pf"><label for="it-mrp">MRP <span class="req">*</span></label>
             <p-inputnumber inputId="it-mrp" mode="currency" currency="INR" locale="en-IN" [min]="0" [ngModel]="f.mrp()" (ngModelChange)="f.mrp.set($event ?? 0)" /></div>
-          <div class="pf"><label for="it-show">Showroom price *</label>
+          <div class="pf"><label for="it-show">Showroom price <span class="req">*</span></label>
             <p-inputnumber inputId="it-show" mode="currency" currency="INR" locale="en-IN" [min]="0" [ngModel]="f.showroomPrice()" (ngModelChange)="f.showroomPrice.set($event ?? 0)" /></div>
-          <div class="pf"><label for="it-min">Minimum selling price *</label>
+          <div class="pf"><label for="it-min">Minimum selling price <span class="req">*</span></label>
             <p-inputnumber inputId="it-min" mode="currency" currency="INR" locale="en-IN" [min]="0" [ngModel]="f.minSellPrice()" (ngModelChange)="f.minSellPrice.set($event ?? 0)" /></div>
           @if (marginHint(); as h) { <small class="hint span">{{ h }}</small> }
         </fieldset>
@@ -240,12 +240,12 @@ type Show = 'ALL' | 'LOW' | 'OUT' | 'INACTIVE';
             <p-selectbutton [options]="adjustOptions" optionLabel="label" optionValue="value" [allowEmpty]="false"
                             [ngModel]="adjKind()" (ngModelChange)="adjKind.set($event)" />
             <div class="adj-row">
-              <div class="pf"><label for="adj-q">Quantity</label>
+              <div class="pf"><label for="adj-q">Quantity <span class="req">*</span></label>
                 <p-inputnumber inputId="adj-q" [min]="0.01" [maxFractionDigits]="2" [ngModel]="adjQty()" (ngModelChange)="adjQty.set($event)" /></div>
-              <div class="pf"><label for="adj-d">Date</label>
+              <div class="pf"><label for="adj-d">Date <span class="req">*</span></label>
                 <p-datepicker inputId="adj-d" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [maxDate]="today" [ngModel]="adjDate()" (ngModelChange)="adjDate.set($event)" /></div>
             </div>
-            <div class="pf"><label for="adj-n">Why</label>
+            <div class="pf"><label for="adj-n">Why <span class="req">*</span></label>
               <input pInputText id="adj-n" maxlength="300" [placeholder]="adjKind() === 'RETURN_OUT' ? 'e.g. Sent back to Fenesta: 2 damaged, bill FN/889' : 'e.g. Counted on 31 Mar; 1 damaged in transport'" [ngModel]="adjNote()" (ngModelChange)="adjNote.set($event)" /></div>
             @if (adjError()) { <p-message severity="error">{{ adjError() }}</p-message> }
             <p-button label="Save stock change" icon="pi pi-check" size="small" [loading]="busy()" (onClick)="adjust(d)" />
