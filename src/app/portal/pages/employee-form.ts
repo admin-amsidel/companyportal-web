@@ -106,6 +106,7 @@ export class EmployeeForm implements OnInit {
       phone: ['', [Validators.required, phoneValidator(true)]],
       emergencyContact: ['', phoneValidator()],
       joinedDate: this.fb.control<Date | null>(new Date(), Validators.required),
+      exitDate: this.fb.control<Date | null>(null),
       dob: this.fb.control<Date | null>(null, pastDate),
       bloodGroup: [''],
       personalEmail: ['', [Validators.email, Validators.maxLength(150)]],
@@ -366,6 +367,10 @@ export class EmployeeForm implements OnInit {
   protected save(): void {
     this.submitted.set(true);
     this.error.set('');
+    const { joinedDate, exitDate } = this.form.controls;
+    if (exitDate.value && joinedDate.value && toIsoDate(exitDate.value)! < toIsoDate(joinedDate.value)!) {
+      exitDate.setErrors({ server: 'The exit date cannot be before the joining date.' });
+    }
     if (this.form.invalid) {
       this.error.set('Please correct the highlighted fields.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -390,6 +395,7 @@ export class EmployeeForm implements OnInit {
       // photos are uploaded separately (PhotoEditor); keep any older public/users path as it is
       photoPath: this.employee()?.photoPath ?? '',
       joinedDate: toIsoDate(v.joinedDate) ?? '',
+      exitDate: toIsoDate(v.exitDate),
       dob: toIsoDate(v.dob),
       bloodGroup: v.bloodGroup,
       personalEmail: v.personalEmail,
@@ -475,6 +481,7 @@ export class EmployeeForm implements OnInit {
       phone: e.phone ?? '',
       emergencyContact: e.emergencyContact ?? '',
       joinedDate: fromIsoDate(e.joinedDate),
+      exitDate: fromIsoDate(e.exitDate),
       dob: fromIsoDate(e.dob),
       bloodGroup: e.bloodGroup ?? '',
       personalEmail: e.personalEmail ?? '',

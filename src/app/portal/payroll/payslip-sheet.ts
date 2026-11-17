@@ -8,13 +8,14 @@ import { FormsModule } from '@angular/forms';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { brandLogoUrl } from '../portal.models';
 import { API_BASE } from '../portal.config';
-import { currencyLocale, employedFor, formatMoney, moneyInWords, paymentLabel, PayKind, Payslip, PayslipLine } from './payroll.models';
+import { currencyLocale, days, formatMoney, moneyInWords, paymentLabel, PayKind, Payslip, PayslipLine } from './payroll.models';
 
 /**
  * A payslip in the portal's own salary-statement design (the same as the PDF, in blue): the brand's logo, name,
  * address and GSTIN in a band; the employee's details as a grid; earnings, deductions and reimbursements with the
  * full-month rate, this month and year to date; the net pay with the amount in words.
- * Read-only for the employee; with [editable] payroll types this month's amounts in place (two-way [(amounts)]).
+ * Read-only for the employee; with [editable] payroll types this month's amounts in place (two-way [(amounts)], by
+ * component code); the lines payroll works out (EPF, ESI, professional tax, income tax) stay read-only.
  */
 @Component({
   selector: 'app-payslip-sheet',
@@ -47,9 +48,9 @@ import { currencyLocale, employedFor, formatMoney, moneyInWords, paymentLabel, P
         <div><span>Bank account</span><b>{{ p.employee.bankAccount ?? '-' }}</b>
           @if (p.employee.ifsc) { <small>IFSC {{ p.employee.ifsc }}</small> }</div>
         <div><span>Pay date</span><b>{{ p.payDate | date: 'd MMM y' }}</b></div>
-        <div><span>Working days</span><b>{{ workingDays() }}</b></div>
-        <div><span>Paid days</span><b>{{ paidDays() }} of {{ workingDays() }}</b></div>
-        <div><span>Loss of pay days</span><b>{{ lopDays() }}</b></div>
+        <div><span>Working days</span><b>{{ p.workingDays }}</b></div>
+        <div><span>Paid days</span><b>{{ days(p.paidDays) }} of {{ p.workingDays }}</b></div>
+        <div><span>Loss of pay days</span><b>{{ days(p.lopDays) }}</b></div>
         <div><span>Credited on</span><b>{{ p.paidOn ? (p.paidOn | date: 'd MMM y') : 'Not yet' }}</b></div>
         <div><span>Paid by</span><b>{{ p.paidOn ? mode(p.paymentMode) : '-' }}</b></div>
         <div><span>Transaction ID</span><b>{{ p.paymentRef ?? '-' }}</b></div>
@@ -60,15 +61,15 @@ import { currencyLocale, employedFor, formatMoney, moneyInWords, paymentLabel, P
           <table class="lines">
             <thead><tr><th>{{ k.title }}</th><th class="num">Rate</th><th class="num">This month</th><th class="num">Year to date</th></tr></thead>
             <tbody>
-              @for (l of of(k.kind); track l.id) {
+              @for (l of of(k.kind); track l.code) {
                 <tr>
                   <td>{{ l.name }}</td>
                   <td class="num muted">{{ money(l.fullAmount) }}</td>
                   <td class="num">
-                    @if (editable() && autoTax() && l.code === 'TDS') {
-                      <span class="auto" title="Worked out from this month's pay under the salary's tax regime">{{ money(amount(l)) }} <small>auto</small></span>
+                    @if (editable() && l.auto) {
+                      <span class="auto" title="Worked out by payroll from this month's pay">{{ money(amount(l)) }} <small>worked out</small></span>
                     } @else if (editable()) {
-                      <p-inputnumber [inputId]="'pl-' + l.id" mode="currency" [currency]="payslip().company.currency || 'INR'" [locale]="curLocale()" [min]="0" [maxFractionDigits]="2"
+                      <p-inputnumber [inputId]="'pl-' + l.code" mode="currency" [currency]="payslip().company.currency || 'INR'" [locale]="curLocale()" [min]="0" [maxFractionDigits]="2"
                                      styleClass="amt" [ariaLabel]="l.name + ' this month'" [ngModel]="amount(l)" (ngModelChange)="set(l, $event)" />
                     } @else { {{ money(l.amount) }} }
                   </td>
@@ -147,14 +148,8 @@ import { currencyLocale, employedFor, formatMoney, moneyInWords, paymentLabel, P
 export class PayslipSheet {
   readonly payslip = input.required<Payslip>();
   readonly editable = input(false);
-  /** Payroll's edits: line id -> amount (unset lines keep the payslip's amount). */
-  readonly amounts = model<Record<number, number | null>>({});
-  /** Payroll's unpaid days while editing; null = the payslip's. */
-  readonly lop = input<number | null>(null);
-  /** Payroll's working days for the month while editing; null = the payslip's. */
-  readonly days = input<number | null>(null);
-  /** The Income Tax line is worked out (New or Old regime), so it is shown, not typed. */
-  readonly autoTax = input(false);
+  /** Payroll's edits: component code -> amount (unset lines keep the payslip's amount). */
+  readonly amounts = model<Record<string, number | null>>({});
 
   protected readonly sections: { kind: PayKind; title: string; total: string }[] = [
     { kind: 'EARNING', title: 'Earnings', total: 'Gross earnings' },
@@ -169,9 +164,7 @@ export class PayslipSheet {
     const c = this.payslip().company;
     return (c.brandId && brandLogoUrl(c.brandId, c.logoUpdatedAt, API_BASE)) || 'brand/logo-mark.png';
   });
-  protected readonly lopDays = computed(() => this.lop() ?? this.payslip().lopDays);
-  protected readonly workingDays = computed(() => this.days() ?? this.payslip().workingDays);
-  protected readonly paidDays = computed(() => employedFor(this.payslip(), this.workingDays()) - this.lopDays());
+  protected readonly days = days;
   protected readonly net = computed(() => this.sum('EARNING') - this.sum('DEDUCTION') + this.sum('REIMBURSEMENT'));
   protected readonly words = computed(() => moneyInWords(this.net(), this.payslip().company.currency));
 
@@ -180,7 +173,7 @@ export class PayslipSheet {
   }
 
   protected amount(l: PayslipLine): number {
-    const v = this.amounts()[l.id];
+    const v = this.amounts()[l.code];
     return v === undefined || v === null ? l.amount : Number(v);
   }
 
@@ -194,6 +187,6 @@ export class PayslipSheet {
   }
 
   protected set(l: PayslipLine, v: number | null): void {
-    this.amounts.update((a) => ({ ...a, [l.id]: v ?? 0 }));
+    this.amounts.update((a) => ({ ...a, [l.code]: v ?? 0 }));
   }
 }

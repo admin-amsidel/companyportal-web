@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { CheckboxModule } from 'primeng/checkbox';
 import { DatePickerModule } from 'primeng/datepicker';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
@@ -19,17 +20,33 @@ import { TextareaModule } from 'primeng/textarea';
 import { Avatar } from '../avatar';
 import { apiProblem, fromIsoDate, toIsoDate } from '../portal.models';
 import { TouchDatePicker } from '../touch-datepicker';
-import { currentFy, DEFAULT_WORKING_DAYS, fyLabel, KINDS, monthsPaid, PayKind, rupees, rupeesRound, Salary, SalaryLine, TAX_REGIMES, TaxCalc, TaxRegime } from './payroll.models';
+import {
+  currentFy, DEFAULT_WORKING_DAYS, fyLabel, KINDS, PayKind, PLAN_SOURCES, PlanSource, PtSlab, rupees, rupeesRound, Salary, SalaryLine,
+  TAX_REGIMES, TaxCalc, TaxRegime,
+} from './payroll.models';
 import { PayrollService } from './payroll.service';
+
+/** EPF: 12% of Basic + DA, on at most ₹15,000 a month unless on the full wage. ESI: 0.75% while the gross is ₹21,000 or less. */
+const PF_RATE = 0.12;
+const PF_WAGE_CEILING = 15000;
+const ESI_RATE = 0.0075;
+const ESI_GROSS_LIMIT = 21000;
+
+/** 1 Oct 2025. */
+function dayLabel(d: Date | null): string {
+  return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+}
 
 /**
  * One employee's salary for one financial year, laid out like the payslip: earnings, deductions and reimbursements,
- * each as a monthly amount with its yearly figure beside it, and the totals as they will be paid.
+ * each as a monthly amount with its yearly figure beside it, and the totals as they will be paid. A year may have
+ * several revisions (a raise from October), each from its own date; EPF, ESI, professional tax and income tax can be
+ * worked out by payroll instead of typed.
  */
 @Component({
   selector: 'app-salary-editor',
   imports: [
-    FormsModule, DatePipe, RouterLink, Avatar, ButtonModule, DatePickerModule, TouchDatePicker, InputNumberModule,
+    FormsModule, DatePipe, RouterLink, Avatar, ButtonModule, CheckboxModule, DatePickerModule, TouchDatePicker, InputNumberModule,
     InputTextModule, MessageModule, SelectModule, SelectButtonModule, TagModule, TextareaModule,
   ],
   template: `
@@ -43,7 +60,8 @@ import { PayrollService } from './payroll.service';
             <div>
               <h1>{{ s.employee.name }}</h1>
               <p>{{ s.employee.empNumber }}{{ s.employee.designationName ? ' · ' + s.employee.designationName : '' }}
-                @if (s.employee.joinedDate) { · joined {{ s.employee.joinedDate | date: 'd MMM y' }} }</p>
+                @if (s.employee.joinedDate) { · joined {{ s.employee.joinedDate | date: 'd MMM y' }} }
+                @if (s.employee.exitDate) { · last working day {{ s.employee.exitDate | date: 'd MMM y' }} }</p>
             </div>
           </div>
         </div>
@@ -66,13 +84,35 @@ import { PayrollService } from './payroll.service';
                         [loading]="copying()" (onClick)="copyPrevious()" />
             }
           </div>
+
+          @if (s.revisions.length) {
+            <div class="revs" aria-label="Salary revisions this year">
+              @for (r of s.revisions; track r.id) {
+                <button type="button" class="rev" [class.rev--on]="r.id === revisionId()" [attr.aria-pressed]="r.id === revisionId()"
+                        (click)="pickRevision(r.id)">
+                  <b>{{ r.effectiveFrom | date: 'd MMM y' }} – {{ r.until ? (r.until | date: 'd MMM y') : 'year end' }}</b>
+                  <small>{{ round(r.monthlyGross) }} gross a month</small>
+                </button>
+              }
+              @if (adding()) {
+                <span class="rev rev--on rev--new"><b>New revision</b><small>from the date below</small></span>
+                <p-button label="Cancel the raise" [text]="true" size="small" (onClick)="pickRevision(s.revisionId)" />
+              } @else if (s.editable) {
+                <p-button label="Add a raise" icon="pi pi-arrow-up-right" [outlined]="true" size="small" (onClick)="addRaise()" />
+              }
+            </div>
+            @if (adding()) {
+              <small class="hint">The new revision starts as a copy of the one you were on. Pick its date, change what is new and save;
+                the earlier revision then runs until the day before.</small>
+            }
+          }
+
           <div class="row2">
             <div class="pf">
               <label for="s-from">Effective from <span class="req">*</span></label>
               <p-datepicker inputId="s-from" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" [disabled]="!s.editable"
-                            [minDate]="fyStart()" [maxDate]="fyEnd()" [ngModel]="from()" (ngModelChange)="from.set($event)" />
-              <small class="hint">{{ months() }} month{{ months() === 1 ? '' : 's' }} paid in {{ s.fyLabel }}
-                ({{ s.fyStart | date: 'd MMM y' }} to {{ s.fyEnd | date: 'd MMM y' }})</small>
+                            [minDate]="minFrom()" [maxDate]="maxFrom()" [ngModel]="from()" (ngModelChange)="from.set($event)" />
+              <small class="hint">{{ rangeHint() }}</small>
             </div>
             <div class="pf">
               <label for="s-days">Working days in a month <span class="req">*</span></label>
@@ -90,16 +130,16 @@ import { PayrollService } from './payroll.service';
                   <label [for]="'amt-' + l.componentId">{{ l.name }}
                     @if (!l.active) { <p-tag value="Retired" severity="secondary" styleClass="tiny" /> }
                   </label>
-                  @if (isTaxLine(l) && regime() !== 'MANUAL') {
-                    <span class="num auto-tax" [title]="'Worked out under the ' + regimeLabel() + ' (see Income tax)'">{{ money(autoTax()) }}
-                      <small class="block muted">{{ regimeLabel() }}</small></span>
+                  @if (isAuto(l)) {
+                    <span class="num auto-tax" [title]="autoTitle(l)">{{ money(lineAmount(l)) }}
+                      <small class="block muted">{{ isTaxLine(l) ? regimeLabel() : 'worked out' }}</small></span>
                   } @else {
                     <p-inputnumber [inputId]="'amt-' + l.componentId" mode="currency" currency="INR" locale="en-IN"
                                    [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" [max]="9999999999" placeholder="₹0"
                                    [disabled]="!s.editable || (isTaxLine(l) && !s.tax.canManual)" styleClass="amt" [ngModel]="amounts()[l.componentId]"
                                    (ngModelChange)="setAmount(l.componentId, $event)" />
                   }
-                  <span class="num yearly">{{ money(amount(l.componentId) * 12) }}</span>
+                  <span class="num yearly">{{ money(lineAmount(l) * 12) }}</span>
                 </div>
               } @empty {
                 <p class="muted small">No {{ k.plural.toLowerCase() }} components. Add them under Pay components.</p>
@@ -111,6 +151,25 @@ import { PayrollService } from './payroll.service';
               </div>
             </div>
           }
+
+          <fieldset class="stat">
+            <legend>Statutory deductions</legend>
+            <label class="check" for="s-pf"><p-checkbox inputId="s-pf" [binary]="true" [disabled]="!s.editable"
+              [ngModel]="pfApplies()" (ngModelChange)="pfApplies.set($event)" />
+              EPF worked out (12% of Basic + DA, on at most ₹15,000)</label>
+            @if (pfApplies()) {
+              <label class="check sub" for="s-pf-full"><p-checkbox inputId="s-pf-full" [binary]="true" [disabled]="!s.editable"
+                [ngModel]="pfFullWage()" (ngModelChange)="pfFullWage.set($event)" />
+                EPF on the full wage</label>
+            }
+            <label class="check" for="s-esi"><p-checkbox inputId="s-esi" [binary]="true" [disabled]="!s.editable"
+              [ngModel]="esiApplies()" (ngModelChange)="esiApplies.set($event)" />
+              ESI worked out (0.75% while the monthly gross is ₹21,000 or less)</label>
+            <label class="check" for="s-pt"><p-checkbox inputId="s-pt" [binary]="true" [disabled]="!s.editable"
+              [ngModel]="ptApplies()" (ngModelChange)="ptApplies.set($event)" />
+              Professional tax from the slabs (per half year)</label>
+            <small class="hint">Ticked ones are worked out on each payslip from the pay of that month, so their lines above are not typed.</small>
+          </fieldset>
 
           <fieldset class="tax">
             <legend>Income tax</legend>
@@ -133,13 +192,21 @@ import { PayrollService } from './payroll.service';
               <div class="cmp-row cmp-head" role="row"><span role="columnheader"></span><span role="columnheader" class="num">New regime</span><span role="columnheader" class="num">Old regime</span></div>
               <div class="cmp-row" role="row"><span role="rowheader">Taxable income</span>
                 <span class="num">{{ round(preview()?.NEW?.taxable) }}</span><span class="num">{{ round(preview()?.OLD?.taxable) }}</span></div>
-              <div class="cmp-row" role="row"><span role="rowheader">Tax for {{ s.fyLabel }} ({{ months() }} mo)</span>
+              <div class="cmp-row" role="row"><span role="rowheader">Tax for {{ s.fyLabel }}</span>
                 <span class="num" [class.pick]="regime() === 'NEW'">{{ round(preview()?.NEW?.annualTax) }}</span>
                 <span class="num" [class.pick]="regime() === 'OLD'">{{ round(preview()?.OLD?.annualTax) }}</span></div>
-              <div class="cmp-row strong" role="row"><span role="rowheader">A month</span>
+              @if (taxBefore()) {
+                <div class="cmp-row" role="row"><span role="rowheader">Already deducted</span>
+                  <span class="num">{{ round(taxBefore()) }}</span><span class="num">{{ round(taxBefore()) }}</span></div>
+              }
+              <div class="cmp-row strong" role="row"><span role="rowheader">A month, for the {{ preview()?.NEW?.months ?? 0 }} months left</span>
                 <span class="num" [class.pick]="regime() === 'NEW'">{{ money(preview()?.NEW?.monthlyTax) }}</span>
                 <span class="num" [class.pick]="regime() === 'OLD'">{{ money(preview()?.OLD?.monthlyTax) }}</span></div>
             </div>
+            @if (earlierRules(); as r) {
+              <small class="hint span warn"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                The {{ s.fyLabel }} Budget rules are not in the system yet; the tax is worked out on {{ r }}.</small>
+            }
             @if (better(); as b) { <small class="hint span"><i class="pi pi-info-circle" aria-hidden="true"></i> {{ b }}</small> }
             @if (chosenCalc(); as c) {
               <details class="span workings">
@@ -155,10 +222,27 @@ import { PayrollService } from './payroll.service';
                   @if (c.surcharge) { <dt>+ Surcharge</dt><dd>{{ money(c.surcharge) }}</dd> }
                   <dt>+ Health &amp; education cess (4%)</dt><dd>{{ money(c.cess) }}</dd>
                   <dt class="strong">Tax for the year</dt><dd class="strong">{{ money(c.annualTax) }}</dd>
-                  <dt>÷ {{ c.months }} month{{ c.months === 1 ? '' : 's' }} = {{ s.tax.taxComponentName ?? 'Income tax' }} a month</dt><dd>{{ money(c.monthlyTax) }}</dd>
+                  <dt>− Already deducted (outside the portal and on payslips)</dt><dd>{{ money(taxBefore()) }}</dd>
+                  <dt>÷ {{ c.months }} month{{ c.months === 1 ? '' : 's' }} left = {{ s.tax.taxComponentName ?? 'Income tax' }} a month</dt><dd>{{ money(c.monthlyTax) }}</dd>
                 </dl>
               </details>
             }
+          </fieldset>
+
+          <fieldset class="tax">
+            <legend>Paid this year outside the portal</legend>
+            <p class="hint span lead">Months before the year's first payslip in the portal count nothing else, so enter what was paid
+              elsewhere in {{ s.fyLabel }} (earlier months, a previous employer). It counts towards the year's income tax.</p>
+            <div class="pf">
+              <label for="s-out-income">Income (gross pay)</label>
+              <p-inputnumber inputId="s-out-income" mode="currency" currency="INR" locale="en-IN" [maxFractionDigits]="2" [min]="0" [max]="999999999999"
+                             placeholder="₹0" [disabled]="!s.editable" [ngModel]="outsideIncome()" (ngModelChange)="outsideIncome.set($event)" />
+            </div>
+            <div class="pf">
+              <label for="s-out-tax">Income tax already deducted</label>
+              <p-inputnumber inputId="s-out-tax" mode="currency" currency="INR" locale="en-IN" [maxFractionDigits]="2" [min]="0" [max]="999999999999"
+                             placeholder="₹0" [disabled]="!s.editable" [ngModel]="outsideTax()" (ngModelChange)="outsideTax.set($event)" />
+            </div>
           </fieldset>
 
           <fieldset class="details">
@@ -194,10 +278,14 @@ import { PayrollService } from './payroll.service';
           @if (formError()) { <p-message severity="error" styleClass="dlg-msg">{{ formError() }}</p-message> }
           @if (s.editable) {
             <div class="p-actions">
-              <p-button [label]="s.set ? 'Save changes' : 'Save salary'" icon="pi pi-check" [loading]="busy()" (onClick)="save()" />
+              <p-button [label]="adding() ? 'Save the raise' : s.set ? 'Save changes' : 'Save salary'" icon="pi pi-check" [loading]="busy()" (onClick)="save()" />
               <p-button label="Cancel" [text]="true" routerLink="/portal/payroll" [queryParams]="{ fy: s.fyStartYear }" />
-              @if (s.set) {
-                <p-button label="Remove" icon="pi pi-trash" severity="danger" [text]="true" styleClass="push" (onClick)="remove()" />
+              @if (s.set && !adding()) {
+                <span class="push"></span>
+                @if (s.revisions.length > 1 && revisionId()) {
+                  <p-button label="Remove this revision" icon="pi pi-times" severity="danger" [text]="true" (onClick)="removeRevision()" />
+                }
+                <p-button [label]="s.revisions.length > 1 ? 'Remove the year' : 'Remove'" icon="pi pi-trash" severity="danger" [text]="true" (onClick)="remove()" />
               }
             </div>
           }
@@ -221,12 +309,33 @@ import { PayrollService } from './payroll.service';
               <dt>Reimbursements</dt><dd>{{ round(sum('REIMBURSEMENT') * 12) }}</dd>
               <dt class="strong">Net pay</dt><dd class="strong">{{ round(net() * 12) }}</dd>
             </dl>
-            <h3>Paid in {{ s.fyLabel }} <small>{{ months() }} month{{ months() === 1 ? '' : 's' }}</small></h3>
-            <dl>
-              <dt>Gross earnings</dt><dd>{{ round(sum('EARNING') * months()) }}</dd>
-              <dt class="strong">Net pay</dt><dd class="strong">{{ round(net() * months()) }}</dd>
-            </dl>
+            @if (s.set) {
+              <h3>Paid in {{ s.fyLabel }} <small>{{ s.totals.monthsInYear }} month{{ s.totals.monthsInYear === 1 ? '' : 's' }}, as saved</small></h3>
+              <dl>
+                <dt>Gross earnings</dt><dd>{{ round(s.totals.yearGross) }}</dd>
+                <dt class="strong">Net pay</dt><dd class="strong">{{ round(s.totals.yearNet) }}</dd>
+              </dl>
+            }
           </section>
+          @if (s.plan.length) {
+            <section class="p-card figures">
+              <h3>Month by month <small>as saved</small></h3>
+              <table class="plan" aria-label="The year month by month">
+                <thead><tr><th>Month</th><th></th><th class="num">Gross</th><th class="num">Net</th><th class="num">Tax</th></tr></thead>
+                <tbody>
+                  @for (m of s.plan; track m.label) {
+                    <tr [class.dim]="m.source === 'NONE' || m.source === 'OUTSIDE'">
+                      <td>{{ m.label }}</td>
+                      <td><span class="src" [class]="'src src--' + m.source.toLowerCase()">{{ sourceLabel(m.source) }}</span></td>
+                      <td class="num">{{ m.source === 'NONE' || m.source === 'OUTSIDE' ? '—' : round(m.gross) }}</td>
+                      <td class="num">{{ m.source === 'NONE' || m.source === 'OUTSIDE' ? '—' : round(m.net) }}</td>
+                      <td class="num">{{ m.source === 'NONE' || m.source === 'OUTSIDE' ? '—' : round(m.incomeTax) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          }
         </aside>
       </div>
     } @else if (loadError()) {
@@ -238,17 +347,29 @@ import { PayrollService } from './payroll.service';
   `,
   styles: `
     .who__row { display: flex; align-items: center; gap: 14px; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
     .form { display: grid; gap: 18px; }
     .form-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
     .form-head h2 { margin: 0; font-size: 1.25rem; }
+    .revs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .rev { display: grid; gap: 2px; text-align: left; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg);
+      font: inherit; color: var(--ink); cursor: pointer; }
+    .rev b { font-size: .86rem; }
+    .rev small { font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .rev--on { border-color: var(--brand-deep); background: var(--accent-softer); box-shadow: inset 0 0 0 1px var(--brand-deep); }
+    .rev--new { border-style: dashed; cursor: default; }
     .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 280px)); gap: 14px; align-items: start; }
     @media (max-width: 760px) { .row2 { grid-template-columns: minmax(0, 1fr); } }
     .details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; padding: 12px 14px 14px;
       border: 1px solid var(--line); border-radius: 12px; }
-    .tax { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 12px; }
-    .tax legend { padding: 0 6px; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--pine); }
+    .tax, .stat { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 12px; }
+    .stat { grid-template-columns: 1fr; gap: 10px; }
+    .tax legend, .stat legend { padding: 0 6px; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--pine); }
     .tax .span { grid-column: 1 / -1; }
+    .check { display: flex; align-items: center; gap: 8px; font-size: .9rem; cursor: pointer; }
+    .check.sub { margin-left: 28px; }
+    .lead { margin: 0; }
+    .warn { color: #92400e; }
     .compare { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
     .cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 150px; gap: 10px; padding: 7px 12px; font-size: .9rem; }
     .cmp-row + .cmp-row { border-top: 1px solid var(--line); }
@@ -277,16 +398,27 @@ import { PayrollService } from './payroll.service';
     .yearly { color: var(--muted); font-size: .9rem; }
     :host ::ng-deep .tiny { font-size: .6rem; padding: 1px 5px; }
     .small { font-size: .85rem; padding: 10px 14px; margin: 0; }
-    :host ::ng-deep .push { margin-left: auto; }
+    .push { margin-left: auto; }
     .note { margin: 0; font-size: .8rem; color: var(--muted); }
     .summary { position: sticky; top: 80px; display: grid; gap: 14px; }
     .net { display: grid; gap: 6px; text-align: center; }
     .net__big { font-size: 2rem; color: var(--brand-deep); font-variant-numeric: tabular-nums; line-height: 1.15; }
     .lbl { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
     .formula { font-size: .78rem; color: var(--muted); line-height: 1.5; }
-    .figures h3 { font-size: .95rem; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+    .figures h3 { font-size: .95rem; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .figures h3 small { font-size: .78rem; font-weight: 500; color: var(--muted); }
     .figures h3 + dl + h3 { margin-top: 18px; }
+    .plan { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .plan th { text-align: left; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600;
+      padding: 4px 4px 6px; border-bottom: 1px solid var(--line); }
+    .plan th.num { text-align: right; }
+    .plan td { padding: 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .plan tr.dim td { color: var(--muted); }
+    .src { font-size: .68rem; padding: 1px 6px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+    .src--payslip { background: var(--accent-softer); color: var(--brand-deep); font-weight: 600; }
+    .src--outside { background: #fff8e8; color: #92400e; }
+    .src--open { background: #eef2ff; color: #3730a3; }
+    .src--none { background: transparent; }
     dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: .9rem; }
     dt { color: var(--muted); }
     dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
@@ -327,6 +459,8 @@ export class SalaryEditor {
   protected readonly salary = signal<Salary | null>(null);
   protected readonly loadError = signal('');
   protected readonly amounts = signal<Record<number, number | null>>({});
+  /** The revision being changed; null = a new one (a raise, or the year's first). */
+  protected readonly revisionId = signal<number | null>(null);
   protected readonly from = signal<Date | null>(null);
   protected readonly notes = signal('');
   protected readonly workingDays = signal<number | null>(DEFAULT_WORKING_DAYS);
@@ -342,6 +476,16 @@ export class SalaryEditor {
   protected readonly formError = signal('');
   protected readonly regime = signal<TaxRegime>('NEW');
   protected readonly declared = signal<number | null>(null);
+  /** Statutory deductions worked out by payroll. */
+  protected readonly pfApplies = signal(false);
+  protected readonly pfFullWage = signal(false);
+  protected readonly esiApplies = signal(false);
+  protected readonly ptApplies = signal(false);
+  /** Paid this year outside the portal. */
+  protected readonly outsideIncome = signal<number | null>(null);
+  protected readonly outsideTax = signal<number | null>(null);
+  /** The professional tax slabs, to show the tax while the pay is typed (the server works it out on save). */
+  private readonly slabs = signal<PtSlab[]>([]);
   protected readonly preview = signal<{ NEW: TaxCalc; OLD: TaxCalc } | null>(null);
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   protected readonly regimeOptions = computed(() => {
@@ -355,6 +499,18 @@ export class SalaryEditor {
   protected readonly chosenCalc = computed(() => this.regime() === 'MANUAL' ? null : this.preview()?.[this.regime() as 'NEW' | 'OLD'] ?? null);
   /** The worked-out monthly tax (the Income Tax line under a regime). */
   protected readonly autoTax = computed(() => this.chosenCalc()?.monthlyTax ?? 0);
+  /** Tax deducted already this year: as saved, with the outside tax as typed now. */
+  protected readonly taxBefore = computed(() => {
+    const s = this.salary();
+    if (!s) return 0;
+    return Math.max(0, Number(s.tax.taxBefore ?? 0) - Number(s.outsideTax ?? 0) + Number(this.outsideTax() ?? 0));
+  });
+  /** The rules used when the year's Budget rules are not in the system yet. */
+  protected readonly earlierRules = computed(() => {
+    const p = this.preview();
+    const c = this.chosenCalc() ?? p?.NEW;
+    return c?.rulesFromEarlierYear ? c.rules : '';
+  });
   protected readonly better = computed(() => {
     const p = this.preview();
     if (!p) return '';
@@ -366,8 +522,27 @@ export class SalaryEditor {
   private readonly year = computed(() => Number(this.fy()) || currentFy());
   protected readonly fyStart = computed(() => new Date(this.year(), 3, 1));
   protected readonly fyEnd = computed(() => new Date(this.year() + 1, 2, 31));
+  /** A salary starts within the year, not before joining or after the last working day. */
+  protected readonly minFrom = computed(() => {
+    const joined = fromIsoDate(this.salary()?.employee.joinedDate);
+    return joined && joined > this.fyStart() ? joined : this.fyStart();
+  });
+  protected readonly maxFrom = computed(() => {
+    const exit = fromIsoDate(this.salary()?.employee.exitDate);
+    return exit && exit < this.fyEnd() ? exit : this.fyEnd();
+  });
+  /** Adding a raise: a new revision after the year's first. */
+  protected readonly adding = computed(() => this.revisionId() === null && !!this.salary()?.revisions.length);
+  protected readonly rangeHint = computed(() => {
+    const s = this.salary();
+    if (!s) return '';
+    if (this.adding()) return `Until the year's end or the next revision. If a revision already starts that day, it is changed.`;
+    const r = s.revisions.find((x) => x.id === this.revisionId());
+    if (r?.until) return `Until ${dayLabel(fromIsoDate(r.until))}, then the next revision`;
+    const end = this.maxFrom();
+    return `Until ${dayLabel(end)}` + (end < this.fyEnd() ? ', the last working day' : `, the end of ${s.fyLabel}`);
+  });
   protected readonly prevLabel = computed(() => fyLabel(this.year() - 1));
-  protected readonly months = computed(() => monthsPaid(this.year(), this.from()));
   protected readonly net = computed(() => this.sum('EARNING') - this.sum('DEDUCTION') + this.sum('REIMBURSEMENT'));
   protected readonly yearOptions = computed(() => {
     const now = currentFy();
@@ -381,18 +556,29 @@ export class SalaryEditor {
       const fy = this.year();
       untracked(() => this.load(id, fy));
     });
-    // the tax under both regimes, again a moment after the pay, the date or the deductions change
+    this.payroll.ptSlabs().subscribe({ next: (l) => this.slabs.set(l), error: () => undefined });
+    // the tax under both regimes, again a moment after the pay, the date, the deductions or the outside pay change
     effect(() => {
       const s = this.salary();
       const from = this.from();
-      const gross = this.sum('EARNING');
-      const pt = this.ptMonthly();
-      const declared = this.declared();
+      // the typed lines only: the server works out EPF, ESI, professional tax and income tax itself
+      const lines = (s?.lines ?? []).filter((l) => !this.isAuto(l)).map((l) => ({ componentId: l.componentId, monthly: this.amount(l.componentId) }));
+      const body = {
+        revisionId: this.revisionId() ?? undefined,
+        workingDays: this.workingDays() || undefined,
+        pfApplies: this.pfApplies(),
+        pfFullWage: this.pfFullWage(),
+        esiApplies: this.esiApplies(),
+        ptApplies: this.ptApplies(),
+        declared: this.regime() === 'OLD' ? this.declared() : null,
+        outsideIncome: this.outsideIncome(),
+        outsideTax: this.outsideTax(),
+      };
       if (!s || !from) return;
       untracked(() => {
         if (this.previewTimer) clearTimeout(this.previewTimer);
         this.previewTimer = setTimeout(() => this.payroll.taxPreview(s.fyStartYear, {
-          effectiveFrom: toIsoDate(from)!, monthlyGross: gross, monthlyProfessionalTax: pt, declared,
+          employeeId: s.employee.id, effectiveFrom: toIsoDate(from)!, lines, ...body,
         }).subscribe({ next: (p) => this.preview.set(p), error: () => undefined }), 350);
       });
     });
@@ -402,8 +588,49 @@ export class SalaryEditor {
     return l.code.toUpperCase() === 'TDS';
   }
 
-  private ptMonthly(): number {
-    return (this.salary()?.lines ?? []).filter((l) => l.code.toUpperCase() === 'PT').reduce((t, l) => t + this.amount(l.componentId), 0);
+  /** Worked out by payroll as the salary is set now (not typed): EPF, ESI, professional tax and income tax. */
+  protected isAuto(l: SalaryLine): boolean {
+    switch (l.code.toUpperCase()) {
+      case 'EPF': return this.pfApplies();
+      case 'ESI': return this.esiApplies();
+      case 'PT': return this.ptApplies();
+      case 'TDS': return this.regime() !== 'MANUAL';
+      default: return l.auto;
+    }
+  }
+
+  protected autoTitle(l: SalaryLine): string {
+    return this.isTaxLine(l) ? `Worked out under the ${this.regimeLabel()} (see Income tax)` : 'Worked out by payroll; saved with the salary';
+  }
+
+  /** A line's monthly amount: typed, or worked out. */
+  protected lineAmount(l: SalaryLine): number {
+    if (!this.isAuto(l)) return this.amount(l.componentId);
+    switch (l.code.toUpperCase()) {
+      case 'TDS': return this.autoTax();
+      case 'EPF': {
+        const wage = this.linesOf('EARNING').filter((x) => ['BASIC', 'DA'].includes(x.code.toUpperCase()))
+          .reduce((t, x) => t + this.amount(x.componentId), 0);
+        return Math.round((this.pfFullWage() ? wage : Math.min(wage, PF_WAGE_CEILING)) * PF_RATE);
+      }
+      case 'ESI': {
+        const gross = this.sum('EARNING');
+        return gross > 0 && gross <= ESI_GROSS_LIMIT ? Math.ceil(gross * ESI_RATE - 1e-9) : 0;
+      }
+      case 'PT': {
+        const s = this.salary();
+        const gross = this.sum('EARNING');
+        // as saved while the pay is as saved; otherwise the half year's tax at this pay, a sixth a month
+        if (s && l.auto && Math.abs(gross - Number(s.totals.monthlyGross)) < 0.5) return Number(l.monthly);
+        const slab = this.slabs().filter((x) => Number(x.fromIncome) <= gross * 6).at(-1);
+        return slab ? Math.round(Number(slab.halfYearTax) / 6) : 0;
+      }
+      default: return Number(l.monthly);
+    }
+  }
+
+  protected sourceLabel(src: PlanSource): string {
+    return PLAN_SOURCES[src];
   }
 
   protected linesOf(kind: PayKind): SalaryLine[] {
@@ -415,8 +642,7 @@ export class SalaryEditor {
   }
 
   protected sum(kind: PayKind): number {
-    // under a regime the tax line is the worked-out amount
-    return this.linesOf(kind).reduce((t, l) => t + (this.isTaxLine(l) && this.regime() !== 'MANUAL' ? this.autoTax() : this.amount(l.componentId)), 0);
+    return this.linesOf(kind).reduce((t, l) => t + this.lineAmount(l), 0);
   }
 
   protected setAmount(componentId: number, value: number | null): void {
@@ -425,6 +651,21 @@ export class SalaryEditor {
 
   protected switchYear(fy: number): void {
     this.router.navigate([], { queryParams: { fy }, replaceUrl: true });
+  }
+
+  /** Another revision of the year (or the one shown again, leaving a raise not saved). */
+  protected pickRevision(id: number | null): void {
+    const s = this.salary();
+    if (!s) return;
+    this.load(s.employee.id, s.fyStartYear, id);
+  }
+
+  /** A new revision from a date to pick, starting as a copy of the one shown. */
+  protected addRaise(): void {
+    this.revisionId.set(null);
+    this.from.set(null);
+    this.notes.set('');
+    this.formError.set('');
   }
 
   /** Fills the form with last year's amounts (not saved until Save). */
@@ -440,6 +681,10 @@ export class SalaryEditor {
           return;
         }
         this.amounts.set(Object.fromEntries(prev.lines.filter((l) => l.monthly > 0).map((l) => [l.componentId, l.monthly])));
+        this.pfApplies.set(prev.pfApplies);
+        this.pfFullWage.set(prev.pfFullWage);
+        this.esiApplies.set(prev.esiApplies);
+        this.ptApplies.set(prev.ptApplies);
         this.toast.add({ severity: 'success', summary: `Copied from ${prev.fyLabel}`, detail: 'Change what is new, then save.' });
       },
       error: (err) => {
@@ -453,10 +698,14 @@ export class SalaryEditor {
     const s = this.salary();
     if (!s) return;
     this.formError.set('');
-    if (!this.from()) return this.formError.set('Choose the date this salary starts from.');
+    const from = this.from();
+    if (!from) return this.formError.set(this.adding() ? 'Choose the date the raise starts from.' : 'Choose the date this salary starts from.');
+    if (toIsoDate(from)! < toIsoDate(this.minFrom())! || toIsoDate(from)! > toIsoDate(this.maxFrom())!) {
+      return this.formError.set('The salary starts within the year, not before joining or after the last working day.');
+    }
     const days = this.workingDays();
     if (!days || days < 1 || days > 31) return this.formError.set(`Working days in a month: 1 to 31 (usually ${DEFAULT_WORKING_DAYS}).`);
-    if (!s.lines.some((l) => this.amount(l.componentId) > 0)) return this.formError.set('Enter at least one amount.');
+    if (!s.lines.some((l) => !this.isAuto(l) && this.amount(l.componentId) > 0)) return this.formError.set('Enter at least one amount.');
     if (this.net() < 0) return this.formError.set('Deductions are more than the pay; check the amounts.');
     const pan = this.pan().trim();
     const bank = this.bank().trim();
@@ -466,14 +715,22 @@ export class SalaryEditor {
     const upi = this.upi().trim();
     if (ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) return this.formError.set('IFSC is 11 characters: 4 letters, 0, then 6 letters or digits (e.g. HDFC0001234).');
     if (upi && !/^[A-Za-z0-9._-]{2,256}@[A-Za-z]{2,64}$/.test(upi)) return this.formError.set('UPI ID looks like name@bank (e.g. anu@okhdfcbank).');
+    const adding = this.adding();
     this.busy.set(true);
     this.payroll
       .save(s.employee.id, s.fyStartYear, {
-        effectiveFrom: toIsoDate(this.from())!,
+        ...(this.revisionId() ? { revisionId: this.revisionId()! } : {}),
+        effectiveFrom: toIsoDate(from)!,
         workingDays: days,
         notes: this.notes().trim(),
-        lines: s.lines.map((l) => ({ componentId: l.componentId,
-          monthly: this.isTaxLine(l) && this.regime() !== 'MANUAL' ? this.autoTax() : this.amount(l.componentId) })),
+        // worked-out lines are sent as shown; the server works them out again
+        lines: s.lines.map((l) => ({ componentId: l.componentId, monthly: this.lineAmount(l) })),
+        pfApplies: this.pfApplies(),
+        pfFullWage: this.pfApplies() && this.pfFullWage(),
+        esiApplies: this.esiApplies(),
+        ptApplies: this.ptApplies(),
+        outsideIncome: this.outsideIncome() ?? 0,
+        outsideTax: this.outsideTax() ?? 0,
         pan,
         bankAccount: bank,
         ifsc,
@@ -485,7 +742,8 @@ export class SalaryEditor {
         next: (saved) => {
           this.busy.set(false);
           this.fill(saved);
-          this.toast.add({ severity: 'success', summary: 'Salary saved', detail: `${saved.employee.name}, ${saved.fyLabel}: ${rupees(saved.totals.monthlyNet)} net a month` });
+          this.toast.add({ severity: 'success', summary: adding ? 'Raise saved' : 'Salary saved',
+            detail: `${saved.employee.name}, ${saved.fyLabel}: ${rupees(saved.totals.monthlyNet)} net a month` });
         },
         error: (err) => {
           this.busy.set(false);
@@ -495,12 +753,38 @@ export class SalaryEditor {
       });
   }
 
+  /** Removes the revision shown; the one before it then runs on. */
+  protected removeRevision(): void {
+    const s = this.salary();
+    const id = this.revisionId();
+    if (!s || !id) return;
+    const r = s.revisions.find((x) => x.id === id);
+    this.confirm.confirm({
+      header: 'Remove revision',
+      message: `Remove the revision from ${r ? dayLabel(fromIsoDate(r.effectiveFrom)) : 'this date'}?`
+        + ' The one before it then runs on in its place.',
+      icon: 'pi pi-times',
+      acceptLabel: 'Remove',
+      rejectLabel: 'Keep',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { outlined: true },
+      accept: () =>
+        this.payroll.delete(s.employee.id, s.fyStartYear, id).subscribe({
+          next: () => {
+            this.toast.add({ severity: 'success', summary: 'Revision removed', detail: `${s.employee.name}, ${s.fyLabel}` });
+            this.load(s.employee.id, s.fyStartYear);
+          },
+          error: (err) => this.formError.set(apiProblem(err).message),
+        }),
+    });
+  }
+
   protected remove(): void {
     const s = this.salary();
     if (!s) return;
     this.confirm.confirm({
       header: 'Remove salary',
-      message: `Remove ${s.employee.name}'s salary for ${s.fyLabel}?`,
+      message: `Remove ${s.employee.name}'s salary for ${s.fyLabel}${s.revisions.length > 1 ? `, all ${s.revisions.length} revisions` : ''}?`,
       icon: 'pi pi-trash',
       acceptLabel: 'Remove',
       rejectLabel: 'Keep',
@@ -517,10 +801,10 @@ export class SalaryEditor {
     });
   }
 
-  private load(employeeId: number, fy: number): void {
+  private load(employeeId: number, fy: number, revisionId?: number | null): void {
     this.loadError.set('');
     this.formError.set('');
-    this.payroll.salary(employeeId, fy).subscribe({
+    this.payroll.salary(employeeId, fy, revisionId).subscribe({
       next: (s) => this.fill(s),
       error: (err) => this.loadError.set(apiProblem(err).message),
     });
@@ -528,6 +812,7 @@ export class SalaryEditor {
 
   private fill(s: Salary): void {
     this.salary.set(s);
+    this.revisionId.set(s.revisionId);
     this.amounts.set(Object.fromEntries(s.lines.filter((l) => l.monthly > 0).map((l) => [l.componentId, l.monthly])));
     this.from.set(fromIsoDate(s.effectiveFrom));
     this.workingDays.set(s.workingDays || DEFAULT_WORKING_DAYS);
@@ -538,6 +823,12 @@ export class SalaryEditor {
     this.upi.set(s.employee.upi ?? '');
     this.regime.set(s.tax.regime);
     this.declared.set(s.tax.declared);
+    this.pfApplies.set(s.pfApplies);
+    this.pfFullWage.set(s.pfFullWage);
+    this.esiApplies.set(s.esiApplies);
+    this.ptApplies.set(s.ptApplies);
+    this.outsideIncome.set(s.outsideIncome);
+    this.outsideTax.set(s.outsideTax);
     this.preview.set({ NEW: s.tax.newRegime, OLD: s.tax.oldRegime });
   }
 }

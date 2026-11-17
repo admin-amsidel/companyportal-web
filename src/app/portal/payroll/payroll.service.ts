@@ -7,7 +7,10 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { silent } from '../busy';
 import { API_BASE } from '../portal.config';
-import { MyPay, PaymentMode, PayComponent, PayKind, PayrollYear, Payslip, PayslipMonth, PayslipSave, PayslipTax, Salary, SalaryBody, TaxCalc, TeamPayPerson } from './payroll.models';
+import {
+  MyPay, PaymentMode, PayComponent, PayKind, PayrollYear, Payslip, PayslipMonth, PayslipPreview, PayslipPreviewBody, PayslipSave, PtSlab, Salary,
+  SalaryBody, TaxCalc, TaxPreviewBody, TeamPayPerson,
+} from './payroll.models';
 import { printPdf } from '../../shared/print-pdf';
 
 const PAY = `${API_BASE}/api/payroll`;
@@ -34,13 +37,23 @@ export class PayrollService {
     return this.http.get<PayrollYear>(`${PAY}/salaries`, { params: fy ? { fy } : {} });
   }
 
-  salary(employeeId: number, fy: number): Observable<Salary> {
-    return this.http.get<Salary>(`${PAY}/salaries/${employeeId}`, { params: { fy } });
+  /** The professional tax slabs, lowest first: a half year's gross pay from fromIncome up pays halfYearTax. */
+  ptSlabs(): Observable<PtSlab[]> {
+    return this.http.get<PtSlab[]>(`${PAY}/professional-tax`);
   }
 
-  /** The income tax under both regimes for the salary being typed. */
-  taxPreview(fy: number, body: { effectiveFrom: string; monthlyGross: number; monthlyProfessionalTax: number; declared: number | null }):
-    Observable<{ NEW: TaxCalc; OLD: TaxCalc }> {
+  /** All the slabs at once; the first starts at 0. */
+  savePtSlabs(slabs: PtSlab[]): Observable<PtSlab[]> {
+    return this.http.put<PtSlab[]>(`${PAY}/professional-tax`, { slabs });
+  }
+
+  /** One revision of the year's salary (revisionId), or the latest. */
+  salary(employeeId: number, fy: number, revisionId?: number | null): Observable<Salary> {
+    return this.http.get<Salary>(`${PAY}/salaries/${employeeId}`, { params: revisionId ? { fy, revisionId } : { fy } });
+  }
+
+  /** The year's income tax under both regimes with the salary revision being typed (nothing saved). */
+  taxPreview(fy: number, body: TaxPreviewBody): Observable<{ NEW: TaxCalc; OLD: TaxCalc }> {
     return this.http.post<{ NEW: TaxCalc; OLD: TaxCalc }>(`${PAY}/tax-preview`, body, { params: { fy }, context: silent() });
   }
 
@@ -48,8 +61,9 @@ export class PayrollService {
     return this.http.put<Salary>(`${PAY}/salaries/${employeeId}`, body, { params: { fy } });
   }
 
-  delete(employeeId: number, fy: number): Observable<void> {
-    return this.http.delete<void>(`${PAY}/salaries/${employeeId}`, { params: { fy } });
+  /** One revision (revisionId), or the whole year's salary. */
+  delete(employeeId: number, fy: number, revisionId?: number | null): Observable<void> {
+    return this.http.delete<void>(`${PAY}/salaries/${employeeId}`, { params: revisionId ? { fy, revisionId } : { fy } });
   }
 
   // ---- monthly payslips (payroll) ----
@@ -71,9 +85,12 @@ export class PayrollService {
     return this.http.put<Payslip>(`${PAY}/payslips/${id}`, body);
   }
 
-  /** This month's income tax for the amounts being typed (nothing saved); null for a Manual tax salary. */
-  payslipTax(id: number, lines: { id: number; amount: number }[]): Observable<PayslipTax | null> {
-    return this.http.post<PayslipTax | null>(`${PAY}/payslips/${id}/tax`, { lines });
+  /**
+   * The draft worked out by the server with the days and amounts being typed (nothing saved): reset = the days changed,
+   * so every amount is worked out again; otherwise the typed amounts stay and the worked-out lines follow them.
+   */
+  previewPayslip(id: number, body: PayslipPreviewBody): Observable<PayslipPreview> {
+    return this.http.post<PayslipPreview>(`${PAY}/payslips/${id}/preview`, body, { context: silent() });
   }
 
   recalculate(id: number): Observable<Payslip> {

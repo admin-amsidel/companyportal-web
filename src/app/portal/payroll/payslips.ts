@@ -4,8 +4,8 @@
  */
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, debounceTime, EMPTY, map, Subject, switchMap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -27,8 +27,8 @@ import { Avatar } from '../avatar';
 import { apiProblem, fromIsoDate, toIsoDate } from '../portal.models';
 import { TouchDatePicker } from '../touch-datepicker';
 import {
-  DEFAULT_WORKING_DAYS, employedFor, forDays, payBrandKey, payBrandOptions, payEmployeeOptions, PAYMENT_MODES, paymentLabel, PaymentMode, Payslip,
-  PayslipMonth, PayslipRow, PayslipTax, rupees, rupeesRound,
+  days, DEFAULT_WORKING_DAYS, LineAmount, payBrandKey, payBrandOptions, payEmployeeOptions, PAYMENT_MODES, paymentLabel, PaymentMode, Payslip,
+  PayslipMonth, PayslipPreview, PayslipPreviewBody, PayslipRow, rupees, rupeesRound,
 } from './payroll.models';
 import { PayrollService } from './payroll.service';
 import { PayslipSheet } from './payslip-sheet';
@@ -39,6 +39,8 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
 /**
  * Payroll > Monthly payslips: make the month's payslips from the salaries as drafts, check and correct them (unpaid
  * days, any amount), publish them, then record each salary as credited (date, bank / UPI / cash, reference).
+ * The server works out a draft's amounts: changing the days works every line out again, changing an amount refreshes
+ * the worked-out lines (EPF, ESI, professional tax, income tax) and the totals.
  * An employee sees a payslip only once it is published and credited.
  */
 @Component({
@@ -169,7 +171,7 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
                   <p-tag value="Awaiting credit" severity="warn" icon="pi pi-clock" />
                 } @else { <span class="muted">—</span> }
               </td>
-              <td data-label="Paid days" class="num">{{ r.payslipId ? r.paidDays + ' / ' + r.workingDays + (r.lopDays ? ' (LOP ' + r.lopDays + ')' : '') : '—' }}</td>
+              <td data-label="Paid days" class="num">{{ r.payslipId ? days(r.paidDays) + ' / ' + r.workingDays + (r.lopDays ? ' (LOP ' + days(r.lopDays) + ')' : '') : '—' }}</td>
               <td data-label="Gross" class="num">{{ r.payslipId ? round(r.money.gross) : '—' }}</td>
               <td data-label="Deductions" class="num">{{ r.payslipId ? round(r.money.deductions) : '—' }}</td>
               <td data-label="Net pay" class="num"><b>{{ r.payslipId ? round(r.money.net) : '—' }}</b></td>
@@ -210,7 +212,7 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
           </div>
         }
       </ng-template>
-      @if (slip(); as s) {
+      @if (view(); as s) {
         @if (draft()) {
           <div class="edit-bar">
             <div class="pf">
@@ -228,10 +230,14 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
             </div>
             <div class="pf">
               <label for="ps-lop">LOP days (unpaid)</label>
-              <p-inputnumber inputId="ps-lop" [min]="0" [max]="employed()" [showButtons]="true" [ngModel]="lop()"
-                             (ngModelChange)="setLop($event ?? 0)" />
-              <small class="hint">Paid {{ employed() - lop() }} of {{ workDays() }} days{{ employed() < workDays() ? ' (from the start date)' : '' }}
-                · a day = {{ perDay() }}</small>
+              <p-inputnumber inputId="ps-lop" [min]="0" [max]="employed()" [step]="0.5" [minFractionDigits]="0" [maxFractionDigits]="1"
+                             [showButtons]="true" [ngModel]="lop()" (ngModelChange)="setLop($event ?? 0)" />
+              <small class="hint">Paid {{ days(s.paidDays) }} of {{ workDays() }} days{{ employed() < workDays() ? ' (employed ' + days(employed()) + ')' : '' }}
+                · half days allowed · a day = {{ perDay() }}</small>
+              @if (s.unpaidLeaveDays) {
+                <small class="hint leave"><i class="pi pi-calendar-minus" aria-hidden="true"></i>
+                  Unpaid leave in this month: {{ days(s.unpaidLeaveDays) }} day{{ s.unpaidLeaveDays === 1 ? '' : 's' }} (counted in LOP)</small>
+              }
             </div>
             <div class="edit-bar__acts">
               <p-button label="Recalculate from salary" icon="pi pi-refresh" [text]="true" size="small" pTooltip="Make it again from the current salary"
@@ -291,11 +297,14 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
             <span><b>Income tax {{ rupees(t.monthTax) }}</b>, worked out from this month's pay ({{ t.rules }}):
               the year's income about {{ rupees(t.yearIncome) }} has tax {{ rupees(t.yearTax) }}; {{ rupees(t.taxBefore) }} was taken in the
               earlier months, the rest is spread over this month{{ t.monthsLeft ? ' and the ' + t.monthsLeft + ' to come' : '' }}.
-              It changes with unpaid days and the amounts.</span>
+              It changes with unpaid days and the amounts.
+              @if (t.rulesFromEarlierYear) {
+                <span class="warn-rules"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                  This year's Budget rules are not in the system yet; {{ t.rules }} are used.</span>
+              }</span>
           </div>
         }
-        <app-payslip-sheet [payslip]="s" [editable]="draft()" [(amounts)]="amounts" [lop]="draft() ? lop() : null"
-                           [days]="draft() ? workDays() : null" [autoTax]="!!tax()" />
+        <app-payslip-sheet [payslip]="s" [editable]="draft()" [amounts]="amounts()" (amountsChange)="typed($event)" />
         @if (formError()) { <p-message severity="error" styleClass="dlg-msg">{{ formError() }}</p-message> }
       }
       <ng-template #footer>
@@ -373,6 +382,9 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
     .tax-note { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: #eef2ff;
       color: #3730a3; font-size: .85rem; line-height: 1.45; }
     .tax-note i { margin-top: 3px; }
+    .warn-rules { display: block; margin-top: 4px; color: #92400e; }
+    .warn-rules i { margin: 0 4px 0 0; }
+    .leave { color: #3730a3; }
     .tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
     .tile--ok .big { color: var(--brand-deep); }
     .credit { display: inline-flex; align-items: center; gap: 8px; }
@@ -475,51 +487,54 @@ export class Payslips implements OnInit {
 
   // the open payslip
   protected readonly slip = signal<Payslip | null>(null);
-  protected readonly amounts = signal<Record<number, number | null>>({});
+  /** The server's working out of the draft with the days and amounts being typed; null = as saved. */
+  private readonly preview = signal<PayslipPreview | null>(null);
+  /** The payslip as it stands: as saved, with the latest preview's days, lines, totals and tax. */
+  protected readonly view = computed<Payslip | null>(() => {
+    const s = this.slip();
+    const p = this.preview();
+    return s && p ? { ...s, workingDays: p.workingDays, employedDays: p.employedDays, lopDays: p.lopDays, paidDays: p.paidDays,
+      lines: p.lines, money: p.money, tax: p.tax } : s;
+  });
+  /** Amounts payroll typed, by component code (the others are as the payslip or the preview has them). */
+  protected readonly amounts = signal<Record<string, number | null>>({});
   protected readonly lop = signal(0);
   protected readonly workDays = signal(DEFAULT_WORKING_DAYS);
-  /** The draft's income tax (New or Old regime), worked out again as the amounts change; null when typed in. */
-  protected readonly tax = signal<PayslipTax | null>(null);
+  /** The draft's income tax (New or Old regime) as the server worked it out; null when typed in. */
+  protected readonly tax = computed(() => this.view()?.tax ?? null);
   protected readonly rupees = rupees;
-  /** The amounts the tax depends on (all but the tax itself), while a draft with a worked-out tax is open. */
-  private readonly taxInput = computed(() => {
-    const s = this.slip();
-    if (!s?.tax || !this.draft()) return null;
-    const a = this.amounts();
-    return JSON.stringify({ id: s.id, lines: s.lines.filter((l) => l.code !== 'TDS').map((l) => ({ id: l.id, amount: Number(a[l.id] ?? l.amount) })) });
-  });
+  protected readonly days = days;
+  /** Previews to ask for: the days changed (straight away) or an amount was typed (after a pause). */
+  private readonly previews = new Subject<{ id: number; body: PayslipPreviewBody }>();
+  private readonly typing = new Subject<void>();
 
   constructor() {
-    toObservable(this.taxInput)
+    this.typing.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.askPreview(false));
+    // the latest request wins: one sent while another is on its way replaces it
+    this.previews
       .pipe(
-        debounceTime(300),
-        distinctUntilChanged(),
-        switchMap((json) => {
-          if (!json) return of(null);
-          const { id, lines } = JSON.parse(json) as { id: number; lines: { id: number; amount: number }[] };
-          return this.payroll.payslipTax(id, lines);
-        }),
+        switchMap(({ id, body }) => this.payroll.previewPayslip(id, body).pipe(
+          map((p) => ({ id, p, reset: body.reset })),
+          catchError((err) => {
+            this.formError.set(apiProblem(err).message);
+            return EMPTY;
+          }),
+        )),
         takeUntilDestroyed(),
       )
-      .subscribe({
-        next: (t) => {
-          const s = this.slip();
-          const line = s?.lines.find((l) => l.code === 'TDS');
-          if (!t || !s || !line) return;
-          this.tax.set(t);
-          this.amounts.update((a) => ({ ...a, [line.id]: t.monthTax }));
-        },
-        error: () => undefined,
+      .subscribe(({ id, p, reset }) => {
+        if (this.slip()?.id !== id) return;
+        this.formError.set('');
+        this.preview.set(p);
+        // new days: every amount comes from the server; typed amounts stay otherwise
+        if (reset) this.amounts.set({});
       });
   }
-  /** Working days employed for the working days chosen. */
-  protected readonly employed = computed(() => {
-    const s = this.slip();
-    return s ? employedFor(s, this.workDays()) : 0;
-  });
+  /** Working days employed (all of them, or fewer from a mid-month start or exit), as the server counts them. */
+  protected readonly employed = computed(() => this.view()?.employedDays ?? 0);
   /** One day's earnings. */
   protected readonly perDay = computed(() => {
-    const s = this.slip();
+    const s = this.view();
     if (!s) return '';
     const gross = s.lines.filter((l) => l.kind === 'EARNING').reduce((t, l) => t + l.fullAmount, 0);
     return rupees(Math.round(gross / this.workDays()));
@@ -672,27 +687,43 @@ export class Payslips implements OnInit {
     this.slip.set(null);
   }
 
-  /** The month's working days change the per-day pay; unpaid days over the new count are cut back. */
-  protected setWorkDays(days: number | null): void {
-    if (!days || days < 1) return;
-    this.workDays.set(Math.min(days, 31));
-    this.setLop(Math.min(this.lop(), this.employed()));
+  /** The month's working days change the per-day pay: the server works the whole payslip out again. */
+  protected setWorkDays(value: number | null): void {
+    if (!value || value < 1) return;
+    const working = Math.min(value, 31);
+    this.workDays.set(working);
+    // unpaid days never more than the days in the month
+    if (this.lop() > working) this.lop.set(working);
+    this.askPreview(true);
   }
 
-  /** Unpaid days change the earnings: full amount / working days x paid days (to the rupee). */
-  protected setLop(lop: number): void {
-    const s = this.slip();
-    if (!s) return;
+  /** Unpaid days, to the half day, change the earnings: the server works the whole payslip out again. */
+  protected setLop(value: number): void {
+    const lop = Math.max(0, Math.min(Math.round(Number(value) * 2) / 2, this.employed() || 31));
     this.lop.set(lop);
-    const working = this.workDays();
-    const paid = this.employed() - lop;
-    this.amounts.update((a) => {
-      const next = { ...a };
-      for (const l of s.lines.filter((x) => x.kind === 'EARNING')) {
-        next[l.id] = forDays(l.fullAmount, paid, working);
-      }
-      return next;
-    });
+    this.askPreview(true);
+  }
+
+  /** An amount typed on the sheet: the worked-out lines and the totals follow it after a pause. */
+  protected typed(amounts: Record<string, number | null>): void {
+    this.amounts.set(amounts);
+    this.typing.next();
+  }
+
+  /** The lines' amounts as shown: typed, else the preview's or the payslip's (onlyTyped: not the worked-out ones). */
+  private shownLines(onlyTyped: boolean): LineAmount[] {
+    const a = this.amounts();
+    return (this.view()?.lines ?? [])
+      .filter((l) => !onlyTyped || !l.auto)
+      .map((l) => ({ ...(l.id != null ? { id: l.id } : { code: l.code }), amount: Number(a[l.code] ?? l.amount) }));
+  }
+
+  /** reset = the days changed (every amount worked out again); otherwise the typed amounts are kept. */
+  private askPreview(reset: boolean): void {
+    const s = this.slip();
+    if (!s || !this.draft()) return;
+    this.previews.next({ id: s.id, body: { lopDays: this.lop(), workingDays: this.workDays(), reset,
+      ...(reset ? {} : { lines: this.shownLines(true) }) } });
   }
 
   protected save(publish: boolean): void {
@@ -702,7 +733,7 @@ export class Payslips implements OnInit {
       payDate: toIsoDate(this.payDate())!,
       workingDays: this.workDays(),
       lopDays: this.lop(),
-      lines: s.lines.map((l) => ({ id: l.id, amount: Number(this.amounts()[l.id] ?? l.amount) })),
+      lines: this.shownLines(false),
       publish,
     };
     this.busy.set(true);
@@ -862,8 +893,8 @@ export class Payslips implements OnInit {
     this.payRef.set('');
     this.payRemarks.set('');
     this.amounts.set({});
-    this.tax.set(p.tax);
-    this.lop.set(p.lopDays);
+    this.preview.set(null);
+    this.lop.set(Number(p.lopDays));
     this.workDays.set(p.workingDays);
     this.payDate.set(fromIsoDate(p.payDate));
   }

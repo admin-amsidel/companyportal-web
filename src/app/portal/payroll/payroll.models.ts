@@ -41,9 +41,14 @@ export interface PayPerson {
   bankAccount: string | null;
   ifsc: string | null;
   upi: string | null;
+  /** Last working day; null = still here. Pay stops after it. */
+  exitDate: string | null;
 }
 
-/** monthly*: one month; annual*: x 12 (the yearly package); year*: what this financial year pays (from effectiveFrom). */
+/**
+ * monthly*: one full month at the revision shown; annual*: x 12 (the yearly package); year*: the financial year month by
+ * month (payslips as made, the months to come worked out; months paid outside the portal not included).
+ */
 export interface PayTotals {
   monthlyGross: number;
   monthlyDeductions: number;
@@ -70,6 +75,8 @@ export interface SalaryRow {
   updatedAt: string | null;
   /** null when no salary is set. */
   taxRegime: TaxRegime | null;
+  /** How many salary revisions the year has (effectiveFrom, workingDays and totals are the latest one's). */
+  revisions: number;
 }
 
 export interface PayrollYear {
@@ -90,6 +97,41 @@ export interface SalaryLine {
   tax: boolean;
   monthly: number;
   annual: number;
+  /** Worked out by payroll (EPF, ESI, professional tax, income tax), not typed. */
+  auto: boolean;
+}
+
+/** One salary revision of the year: from its date until the day before the next (until null = the year's end). */
+export interface SalaryRevision {
+  id: number;
+  effectiveFrom: string;
+  until: string | null;
+  monthlyGross: number;
+}
+
+/** PAYSLIP: as made; OUTSIDE: paid outside the portal; OPEN: worked out (from now on); NONE: not employed. */
+export type PlanSource = 'PAYSLIP' | 'OUTSIDE' | 'OPEN' | 'NONE';
+
+export const PLAN_SOURCES: Record<PlanSource, string> = { PAYSLIP: 'Payslip', OUTSIDE: 'Paid outside', OPEN: 'Expected', NONE: '—' };
+
+/** One month of the financial year. */
+export interface PlanMonth {
+  year: number;
+  month: number;
+  label: string;
+  source: PlanSource;
+  gross: number;
+  deductions: number;
+  reimbursements: number;
+  net: number;
+  incomeTax: number;
+  professionalTax: number;
+}
+
+/** A professional tax slab: a half year's gross pay from fromIncome up pays halfYearTax. */
+export interface PtSlab {
+  fromIncome: number;
+  halfYearTax: number;
 }
 
 export interface Salary {
@@ -109,6 +151,20 @@ export interface Salary {
   updatedByName: string | null;
   updatedAt: string | null;
   tax: TaxView;
+  /** The revision shown; null = none yet. */
+  revisionId: number | null;
+  /** The year's revisions, earliest first. */
+  revisions: SalaryRevision[];
+  /** EPF (12% of Basic + DA, on at most ₹15,000 unless pfFullWage), ESI and professional tax are worked out. */
+  pfApplies: boolean;
+  pfFullWage: boolean;
+  esiApplies: boolean;
+  ptApplies: boolean;
+  /** Gross pay and income tax of this year paid outside the portal (earlier months, a previous employer). */
+  outsideIncome: number | null;
+  outsideTax: number | null;
+  /** The year month by month (12 months, April to March). */
+  plan: PlanMonth[];
 }
 
 /** NEW / OLD: the income tax is worked out from the salary; MANUAL: typed in (needs the Manual income tax access). */
@@ -134,8 +190,11 @@ export interface TaxCalc {
   surcharge: number;
   cess: number;
   annualTax: number;
+  /** The open months left in the year, and the tax left spread over them. */
   months: number;
   monthlyTax: number;
+  /** The year's Budget rules are not in the system yet: an earlier year's (named in rules) are used. */
+  rulesFromEarlierYear: boolean;
 }
 
 export interface TaxView {
@@ -150,10 +209,20 @@ export interface TaxView {
   canChooseRegime: boolean;
   /** The pay component the tax goes in (Income Tax). */
   taxComponentName: string | null;
+  /** Deducted already this year: outside the portal and on payslips. */
+  taxBefore: number;
 }
 
 export interface SalaryBody {
+  /** The revision to change; left out = a new revision from effectiveFrom (or the one already starting that day). */
+  revisionId?: number;
   effectiveFrom: string;
+  pfApplies: boolean;
+  pfFullWage: boolean;
+  esiApplies: boolean;
+  ptApplies: boolean;
+  outsideIncome: number | null;
+  outsideTax: number | null;
   workingDays: number;
   notes: string;
   lines: { componentId: number; monthly: number }[];
@@ -163,6 +232,22 @@ export interface SalaryBody {
   upi: string;
   taxRegime: TaxRegime;
   taxDeclared: number | null;
+}
+
+/** A salary revision being typed, for the year's income tax under both regimes. */
+export interface TaxPreviewBody {
+  employeeId: number;
+  revisionId?: number;
+  effectiveFrom: string;
+  workingDays?: number;
+  lines: { componentId: number; monthly: number }[];
+  pfApplies: boolean;
+  pfFullWage: boolean;
+  esiApplies: boolean;
+  ptApplies: boolean;
+  declared?: number | null;
+  outsideIncome?: number | null;
+  outsideTax?: number | null;
 }
 
 const RUPEES = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -264,6 +349,7 @@ export interface PayslipRow {
   payslipId: number | null;
   status: PayslipStatus | null;
   workingDays: number;
+  /** Half days allowed, e.g. 21.5. */
   paidDays: number;
   lopDays: number;
   money: PayMoney;
@@ -288,7 +374,8 @@ export interface PayslipMonth {
 }
 
 export interface PayslipLine {
-  id: number;
+  /** null on a preview's line the payslip does not have yet (match it by code). */
+  id: number | null;
   code: string;
   name: string;
   kind: PayKind;
@@ -298,6 +385,8 @@ export interface PayslipLine {
   amount: number;
   /** Year to date, this month included. */
   ytd: number;
+  /** Worked out by payroll (EPF, ESI, professional tax, income tax), not typed. */
+  auto: boolean;
 }
 
 /**
@@ -312,6 +401,8 @@ export interface PayslipTax {
   taxBefore: number;
   monthsLeft: number;
   monthTax: number;
+  /** The year's Budget rules are not in the system yet: an earlier year's are used. */
+  rulesFromEarlierYear: boolean;
 }
 
 export interface Payslip {
@@ -327,10 +418,13 @@ export interface Payslip {
   daysInMonth: number;
   /** Working days this month (the salary's, default 30, or set by payroll). */
   workingDays: number;
-  /** Working days employed: all of them, or fewer from a mid-month start. */
+  /** Working days employed: all of them, or fewer from a mid-month start or exit. */
   employedDays: number;
+  /** Unpaid days, in half days (e.g. 1.5). */
   lopDays: number;
   paidDays: number;
+  /** Approved unpaid leave counted into the LOP days when the draft was made (payroll only; null otherwise). */
+  unpaidLeaveDays: number | null;
   lines: PayslipLine[];
   money: PayMoney;
   netInWords: string;
@@ -357,13 +451,49 @@ export interface Payslip {
   paidRecordedByName: string | null;
 }
 
+/** A line's amount: by the line's id, or by its component's code (a line the payslip does not have yet). */
+export interface LineAmount {
+  id?: number;
+  code?: string;
+  amount: number;
+}
+
 export interface PayslipSave {
   payDate: string;
   workingDays: number;
   lopDays: number;
-  lines: { id: number; amount: number }[];
+  lines: LineAmount[];
   publish: boolean;
 }
+
+/**
+ * A draft being changed, worked out by the server before it is saved. reset = the days changed: earnings and fixed
+ * deductions are worked out again for them, the typed amounts left out.
+ */
+export interface PayslipPreviewBody {
+  lopDays: number;
+  workingDays?: number;
+  lines?: LineAmount[];
+  reset: boolean;
+}
+
+/** What the draft would be: its days, every line (EPF, ESI, professional tax and income tax worked out) and the tax. */
+export interface PayslipPreview {
+  workingDays: number;
+  employedDays: number;
+  lopDays: number;
+  paidDays: number;
+  lines: PayslipLine[];
+  money: PayMoney;
+  tax: PayslipTax | null;
+}
+
+/** Days with half days: 21.5 -> "21.5", 22 -> "22". */
+export function days(v: number | null | undefined): string {
+  return DAYS.format(Number(v ?? 0));
+}
+
+const DAYS = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 });
 
 /** The Brand filter's value for group-level people, who have no brand. */
 export const NO_BRAND = 'NONE';
@@ -393,19 +523,6 @@ export function payEmployeeOptions(rows: readonly { employee: PayPerson }[], bra
 
 /** Working days in a month unless the salary says otherwise. */
 export const DEFAULT_WORKING_DAYS = 30;
-
-/**
- * Working days employed if the month had `working` days: a full month is all of them; a mid-month start keeps
- * its own count (the server counts it exactly on save).
- */
-export function employedFor(p: Pick<Payslip, 'employedDays' | 'workingDays'>, working: number): number {
-  return p.employedDays >= p.workingDays ? working : Math.min(p.employedDays, working);
-}
-
-/** Earnings for the paid days: full x paid / working days, to the rupee (the full amount when all are paid). */
-export function forDays(full: number, paid: number, working: number): number {
-  return paid >= working ? full : Math.round((full * paid) / working);
-}
 
 // ---- the employee's own pay ----
 
@@ -437,6 +554,7 @@ export interface PayslipSummary {
   month: number;
   label: string;
   payDate: string;
+  /** Half days allowed. */
   paidDays: number;
   lopDays: number;
   money: PayMoney;

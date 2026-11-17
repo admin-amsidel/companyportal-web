@@ -64,6 +64,8 @@ export interface Employee {
   /** Set when a photo was uploaded from the portal; it is shown instead of photoPath. */
   photoUpdatedAt: string | null;
   joinedDate: string | null;
+  /** Last working day; null = still here. */
+  exitDate?: string | null;
   dob: string | null;
   bloodGroup: string | null;
   personalEmail: string | null;
@@ -136,6 +138,8 @@ export interface EmployeeRequest {
   phone: string;
   photoPath: string;
   joinedDate: string;
+  /** Last working day (optional); pay stops after it. */
+  exitDate: string | null;
   dob: string | null;
   bloodGroup: string;
   personalEmail: string;

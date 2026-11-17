@@ -113,7 +113,10 @@ import { ExcelTable } from '../excel-export';
                   </span>
                 </span>
               </td>
-              <td data-label="From" class="nowrap">{{ r.effectiveFrom ? (r.effectiveFrom | date: 'd MMM y') : '—' }}</td>
+              <td data-label="From" class="nowrap">{{ r.effectiveFrom ? (r.effectiveFrom | date: 'd MMM y') : '—' }}
+                @if (r.revisions > 1) { <p-tag [value]="r.revisions + ' revisions'" severity="info" styleClass="tiny ml" /> }
+                @if (r.employee.exitDate) { <small class="muted block">Exit date {{ r.employee.exitDate | date: 'd MMM y' }}</small> }
+              </td>
               <td data-label="Working days" class="num">{{ r.set ? r.workingDays : '—' }}</td>
               <td data-label="Monthly gross" class="num">{{ r.set ? round(r.totals.monthlyGross) : '—' }}</td>
               <td data-label="Monthly net" class="num"><b>{{ r.set ? round(r.totals.monthlyNet) : '—' }}</b></td>
@@ -173,6 +176,7 @@ import { ExcelTable } from '../excel-export';
     :host ::ng-deep .status-cell .p-button { width: 2rem; height: 2rem; }
     .block { display: block; }
     :host ::ng-deep .ml { margin-left: 6px; }
+    :host ::ng-deep .tiny { font-size: .62rem; padding: 1px 6px; }
     .note { margin: 12px 0 0; font-size: .8rem; color: var(--muted); }
     @media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 760px) {

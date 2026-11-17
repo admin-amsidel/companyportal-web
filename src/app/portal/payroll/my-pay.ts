@@ -15,7 +15,7 @@ import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
 import { apiProblem, Brand } from '../portal.models';
 import { ActivatedRoute, Router } from '@angular/router';
-import { fyLabel, KINDS, MyPay, paymentLabel, PayKind, Payslip, rupees, rupeesRound, SalaryLine, TeamPayPerson } from './payroll.models';
+import { days, fyLabel, KINDS, MyPay, paymentLabel, PayKind, Payslip, rupees, rupeesRound, SalaryLine, TeamPayPerson } from './payroll.models';
 import { PayrollService } from './payroll.service';
 import { AuthService } from '../auth.service';
 import { StaffService } from '../staff.service';
@@ -141,7 +141,7 @@ import { ExcelTable } from '../excel-export';
                   <tr class="row-link" (click)="open(p.id)">
                     <td data-label="Month" class="stack-full"><b>{{ p.label }}</b></td>
                     <td data-label="Credited">{{ p.paidOn | date: 'd MMM y' }} <small class="muted">· {{ mode(p.paymentMode) }}</small></td>
-                    <td data-label="Paid days" class="num">{{ p.paidDays }}{{ p.lopDays ? ' (LOP ' + p.lopDays + ')' : '' }}</td>
+                    <td data-label="Paid days" class="num">{{ days(p.paidDays) }}{{ p.lopDays ? ' (LOP ' + days(p.lopDays) + ')' : '' }}</td>
                     <td data-label="Gross" class="num">{{ money(p.money.gross) }}</td>
                     <td data-label="Deductions" class="num">{{ money(p.money.deductions) }}</td>
                     <td data-label="Net pay" class="num"><b>{{ money(p.money.net) }}</b></td>
@@ -296,6 +296,7 @@ export class MyPayPage implements OnInit {
 
   protected readonly kinds = KINDS;
   protected readonly money = rupees;
+  protected readonly days = days;
   protected readonly round = rupeesRound;
   protected readonly mode = paymentLabel;
   protected readonly data = signal<MyPay | null>(null);

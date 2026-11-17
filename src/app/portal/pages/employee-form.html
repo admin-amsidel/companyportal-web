@@ -163,6 +163,13 @@
           @if (errorFor('joinedDate'); as m) { <small class="error">{{ m }}</small> }
         </div>
         <div class="pf">
+          <label for="f-exit">Exit date (last working day)</label>
+          <p-datepicker inputId="f-exit" formControlName="exitDate" dateFormat="dd/mm/yy" [showIcon]="true" [showClear]="true"
+                        placeholder="dd/mm/yyyy" [minDate]="form.controls.joinedDate.value" [invalid]="!!errorFor('exitDate')" appendTo="body" />
+          @if (errorFor('exitDate'); as m) { <small class="error">{{ m }}</small> }
+          @else { <small class="hint">Optional. Pay stops after this day; leave empty while they are still here.</small> }
+        </div>
+        <div class="pf">
           <label for="f-cmail">Company email</label>
           <input pInputText id="f-cmail" formControlName="companyEmail" type="email" placeholder="name@example.com"
                  [invalid]="!!errorFor('companyEmail')" />

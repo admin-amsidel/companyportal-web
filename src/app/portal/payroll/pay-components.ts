@@ -16,7 +16,7 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { apiProblem } from '../portal.models';
-import { KINDS, PayComponent, PayKind } from './payroll.models';
+import { KINDS, PayComponent, PayKind, PtSlab, rupeesRound } from './payroll.models';
 import { PayrollService } from './payroll.service';
 import { ExcelTable } from '../excel-export';
 
@@ -67,6 +67,42 @@ import { ExcelTable } from '../excel-export';
       </section>
     }
 
+    <section class="p-card">
+      <div class="card-head">
+        <h2>Professional tax slabs</h2>
+        <p-button label="Add a slab" icon="pi pi-plus" [outlined]="true" size="small" [disabled]="slabs().length >= 30" (onClick)="addSlab()" />
+      </div>
+      <p class="muted intro">The tax is per half year (April–September, October–March), on that half year's gross pay, and is spread
+        over its months. The starting slabs are Kerala's: check them against the current notification for your state.</p>
+      <table class="slabs" aria-label="Professional tax slabs">
+        <thead><tr><th>Half-year gross from</th><th>Tax for the half year</th><th class="up-to">Up to</th><th></th></tr></thead>
+        <tbody>
+          @for (s of slabs(); track $index; let i = $index) {
+            <tr>
+              <td><p-inputnumber [inputId]="'pt-from-' + i" mode="currency" currency="INR" locale="en-IN" [maxFractionDigits]="2" [min]="0"
+                                 [max]="999999999999" [disabled]="i === 0" [ariaLabel]="'Slab ' + (i + 1) + ': half-year gross from'"
+                                 [ngModel]="s.fromIncome" (ngModelChange)="setSlab(i, 'fromIncome', $event)" /></td>
+              <td><p-inputnumber [inputId]="'pt-tax-' + i" mode="currency" currency="INR" locale="en-IN" [maxFractionDigits]="2" [min]="0"
+                                 [max]="99999999" placeholder="₹0" [ariaLabel]="'Slab ' + (i + 1) + ': tax for the half year'"
+                                 [ngModel]="s.halfYearTax" (ngModelChange)="setSlab(i, 'halfYearTax', $event)" /></td>
+              <td class="up-to muted">{{ upTo(i) }}</td>
+              <td>
+                @if (i > 0) {
+                  <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small" severity="danger"
+                            [ariaLabel]="'Remove slab ' + (i + 1)" (onClick)="removeSlab(i)" />
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      @if (slabError()) { <p-message severity="error" styleClass="dlg-msg">{{ slabError() }}</p-message> }
+      <div class="slab-acts">
+        <p-button label="Save slabs" icon="pi pi-check" [loading]="slabBusy()" (onClick)="saveSlabs()" />
+        <small class="muted">The first slab starts at ₹0. Salaries with "Professional tax from the slabs" use them.</small>
+      </div>
+    </section>
+
     <p-dialog [header]="editing() ? 'Edit ' + editing()!.name : 'New pay component'" [modal]="true" [visible]="open()"
               (visibleChange)="open.set($event)" [style]="{ width: '480px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }"
               [draggable]="false">
@@ -106,7 +142,19 @@ import { ExcelTable } from '../excel-export';
     :host ::ng-deep .dlg-msg { margin-top: 12px; }
     :host ::ng-deep .left { margin-right: auto; }
     :host ::ng-deep .ml { margin-left: 6px; }
-    @media (max-width: 760px) { .form { grid-template-columns: 1fr; } }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .card-head h2 { margin: 0; }
+    .intro { margin: 8px 0 12px; font-size: .88rem; }
+    .muted { color: var(--muted); }
+    .slabs { border-collapse: collapse; width: 100%; max-width: 680px; }
+    .slabs th { text-align: left; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--pine); font-weight: 700;
+      padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    .slabs td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    .slabs .up-to { font-size: .85rem; white-space: nowrap; }
+    :host ::ng-deep .slabs .p-inputnumber, :host ::ng-deep .slabs .p-inputnumber-input { width: 100%; min-width: 0; }
+    .slab-acts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    .slab-acts small { font-size: .8rem; }
+    @media (max-width: 760px) { .form { grid-template-columns: 1fr; } .slabs .up-to { display: none; } }
   `,
 })
 export class PayComponents implements OnInit {
@@ -127,9 +175,65 @@ export class PayComponents implements OnInit {
   protected readonly tax = signal(false);
   protected readonly formError = signal('');
   protected readonly busy = signal(false);
+  /** The professional tax slabs being edited, lowest first. */
+  protected readonly slabs = signal<{ fromIncome: number | null; halfYearTax: number | null }[]>([]);
+  protected readonly slabError = signal('');
+  protected readonly slabBusy = signal(false);
 
   ngOnInit(): void {
     this.load();
+    this.loadSlabs();
+  }
+
+  /** Where a slab ends: the day before the next one starts. */
+  protected upTo(i: number): string {
+    const next = this.slabs()[i + 1]?.fromIncome;
+    return next == null ? 'and above' : 'below ' + rupeesRound(next);
+  }
+
+  protected setSlab(i: number, field: 'fromIncome' | 'halfYearTax', value: number | null): void {
+    this.slabs.update((list) => list.map((s, j) => (j === i ? { ...s, [field]: value } : s)));
+  }
+
+  protected addSlab(): void {
+    const last = this.slabs().at(-1);
+    this.slabs.update((list) => [...list, { fromIncome: last ? Number(last.fromIncome ?? 0) + 1 : 0, halfYearTax: null }]);
+  }
+
+  protected removeSlab(i: number): void {
+    this.slabs.update((list) => list.filter((_, j) => j !== i));
+  }
+
+  protected saveSlabs(): void {
+    this.slabError.set('');
+    const list = this.slabs();
+    if (!list.length) return this.slabError.set('Give at least one slab.');
+    if (list.some((s) => s.fromIncome == null || s.halfYearTax == null)) return this.slabError.set('Fill in every slab, or remove the empty ones.');
+    const slabs: PtSlab[] = list.map((s) => ({ fromIncome: Number(s.fromIncome), halfYearTax: Number(s.halfYearTax) }));
+    if (slabs[0].fromIncome !== 0) return this.slabError.set('The first slab starts at ₹0.');
+    if (slabs.some((s, i) => i > 0 && s.fromIncome <= slabs[i - 1].fromIncome)) {
+      return this.slabError.set('Each slab starts above the one before it.');
+    }
+    this.slabBusy.set(true);
+    this.payroll.savePtSlabs(slabs).subscribe({
+      next: (saved) => {
+        this.slabBusy.set(false);
+        this.slabs.set(saved.map((s) => ({ ...s })));
+        this.toast.add({ severity: 'success', summary: 'Professional tax slabs saved', detail: `${saved.length} slab${saved.length === 1 ? '' : 's'}` });
+      },
+      error: (err) => {
+        this.slabBusy.set(false);
+        const p = apiProblem(err);
+        this.slabError.set(Object.values(p.fields)[0] ?? p.message);
+      },
+    });
+  }
+
+  private loadSlabs(): void {
+    this.payroll.ptSlabs().subscribe({
+      next: (l) => this.slabs.set(l.length ? l.map((s) => ({ ...s })) : [{ fromIncome: 0, halfYearTax: 0 }]),
+      error: (err) => this.slabError.set(apiProblem(err).message),
+    });
   }
 
   protected of(kind: PayKind): PayComponent[] {
