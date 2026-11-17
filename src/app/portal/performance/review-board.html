@@ -550,10 +550,12 @@
       @if (!goalTypes().length) {
         <p-message severity="warn" styleClass="inline-msg">You may not set goals of any type. Ask your admin for a "Goal type" under Performance in Menu access.</p-message>
       }
-      <p-selectbutton [options]="goalTypes()" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="g-type"
-                      [disabled]="gLocked()" [ngModel]="gType()" (ngModelChange)="pickType($event)">
-        <ng-template #item let-o><i [class]="o.icon" aria-hidden="true"></i>&nbsp;{{ o.label }}</ng-template>
-      </p-selectbutton>
+      <div class="goal-types">
+        <p-selectbutton [options]="goalTypes()" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabelledBy="g-type"
+                        [disabled]="gLocked()" [ngModel]="gType()" (ngModelChange)="pickType($event)">
+          <ng-template #item let-o><span class="goal-type-opt"><i [class]="o.icon" aria-hidden="true"></i><span>{{ o.label }}</span></span></ng-template>
+        </p-selectbutton>
+      </div>
       <small class="hint">
         @if (gType() === 'SALES') { A target amount; {{ r.employee.name }} records what they achieved (amount, dates, invoice numbers) and the progress and self rating follow on their own. }
         @else if (gType() === 'TASK_WORKLOG') { One per person: every work log task assigned to {{ r.employee.name }} is a sub-task, added on its own as tasks are assigned, with the hours they log. They mark each complete with their stars and a description; then you review it. }

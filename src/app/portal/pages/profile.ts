@@ -21,6 +21,8 @@ import { EmployeeDocuments } from './employee-documents';
 import { ReportingLine } from '../org-chart/reporting-line';
 import { BankDetailsCard } from './bank-details-card';
 import { PhotoEditor } from '../photo-editor';
+import { SkillsCard } from './skills-card';
+import { ExperienceCard } from './experience-card';
 import { apiProblem, BLOOD_GROUPS, designationLabel, fromIsoDate, ROLE_LABELS, toIsoDate } from '../portal.models';
 
 /**
@@ -34,7 +36,7 @@ import { apiProblem, BLOOD_GROUPS, designationLabel, fromIsoDate, ROLE_LABELS, t
   selector: 'app-profile',
   imports: [
     PhotoEditor, FormsModule, PhoneInput, TouchDatePicker, ButtonModule, DatePickerModule, InputTextModule, MessageModule, SelectModule,
-    TagModule, TextareaModule, ReportingLine, BankDetailsCard, EmployeeDocuments,
+    TagModule, TextareaModule, ReportingLine, BankDetailsCard, EmployeeDocuments, SkillsCard, ExperienceCard,
   ],
   template: `
     @if (auth.user(); as me) {
@@ -140,6 +142,10 @@ import { apiProblem, BLOOD_GROUPS, designationLabel, fromIsoDate, ROLE_LABELS, t
           <p class="hint">Last sign-in: {{ signedIn(me.lastLoginAt, me.timeZone) }}</p>
         }
       </section>
+
+      <app-skills-card />
+
+      <app-experience-card [companyName]="me.brandName" />
 
       <section class="p-card">
         <h2>My reporting line</h2>

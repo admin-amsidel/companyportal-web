@@ -212,6 +212,10 @@
       <app-reporting-line [employeeId]="e.id" />
     </section>
 
+    <app-skills-card [employeeId]="e.id" />
+
+    <app-experience-card [employeeId]="e.id" />
+
     <app-bank-details-card [employeeId]="e.id" />
 
     @if (canEdit()) {

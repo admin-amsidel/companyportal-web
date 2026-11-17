@@ -13,6 +13,14 @@
 :host ::ng-deep .dlg-msg, :host ::ng-deep .inline-msg { margin: 0; }
 :host ::ng-deep .dlg-msg { margin-top: 12px; }
 
+/* goal types: equal tiles in a grid, each choice on one line with its icon beside its label and the same padding all
+   round; the grid takes fewer columns in a narrow dialog instead of squeezing the labels onto two lines */
+.goal-types ::ng-deep .p-selectbutton { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 4px; width: 100%; padding: 4px; }
+.goal-types ::ng-deep .p-togglebutton { padding: 0; white-space: nowrap; min-width: 0; }
+.goal-types ::ng-deep .p-togglebutton-content { width: 100%; justify-content: center; padding: 9px 12px; }
+.goal-types ::ng-deep .goal-type-opt { display: inline-flex; align-items: center; gap: 8px; line-height: 1.2; white-space: nowrap; }
+.goal-types ::ng-deep .goal-type-opt .pi { font-size: .95rem; }
+
 /* totals */
 .sum { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(0, 1fr)); gap: 18px; align-items: center; }
 .sum__who { display: flex; align-items: center; gap: 12px; min-width: 0; }

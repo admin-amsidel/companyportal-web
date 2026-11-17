@@ -25,6 +25,8 @@ import { Avatar } from '../avatar';
 import { ReportingLine } from '../org-chart/reporting-line';
 import { PhotoEditor } from '../photo-editor';
 import { BankDetailsCard } from './bank-details-card';
+import { SkillsCard } from './skills-card';
+import { ExperienceCard } from './experience-card';
 import { DocumentsService, ProfileStatus } from '../documents.service';
 import { EmployeeDocuments } from './employee-documents';
 import { pinChecks, pinValidator } from '../pin-policy';
@@ -60,6 +62,7 @@ function staffNeedsBrand(g: AbstractControl): ValidationErrors | null {
   imports: [
     DatePipe, PhoneInput, ReactiveFormsModule, RouterLink, Avatar, PhotoEditor, ReportingLine, ButtonModule, CheckboxModule, DatePickerModule, TouchDatePicker,
     InputNumberModule, InputTextModule, MessageModule, SelectModule, TagModule, TextareaModule, BankDetailsCard, EmployeeDocuments,
+    SkillsCard, ExperienceCard,
   ],
   templateUrl: './employee-form.html',
   styles: `
