@@ -418,6 +418,8 @@ export interface Payslip {
   daysInMonth: number;
   /** Working days this month (the salary's, default 30, or set by payroll). */
   workingDays: number;
+  /** The salary's working days a month: a day's pay = monthly / this; workingDays = days payable this month. */
+  dayBasis: number;
   /** Working days employed: all of them, or fewer from a mid-month start or exit. */
   employedDays: number;
   /** Unpaid days, in half days (e.g. 1.5). */
@@ -480,6 +482,8 @@ export interface PayslipPreviewBody {
 /** What the draft would be: its days, every line (EPF, ESI, professional tax and income tax worked out) and the tax. */
 export interface PayslipPreview {
   workingDays: number;
+  /** The salary's working days a month: a day's pay = monthly / this (PORTAL-20). */
+  dayBasis: number;
   employedDays: number;
   lopDays: number;
   paidDays: number;

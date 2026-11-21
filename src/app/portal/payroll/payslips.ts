@@ -7,7 +7,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, debounceTime, EMPTY, map, Subject, switchMap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -183,8 +183,9 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
                   <p-button label="Make" icon="pi pi-plus" [text]="true" size="small" [ariaLabel]="'Make payslip of ' + r.employee.name"
                             (onClick)="openGenerate([r.employee.id]); $event.stopPropagation()" />
                 } @else if (!r.salarySet) {
-                  <p-button label="Set salary" [text]="true" size="small" severity="secondary"
-                            (onClick)="$event.stopPropagation()" [routerLink]="['/portal/payroll', r.employee.id]" [queryParams]="{ fy: d.fyStartYear }" />
+                  <p-button [label]="r.editable ? 'Set salary' : 'View salary'" [text]="true" size="small" severity="secondary"
+                            [ariaLabel]="(r.editable ? 'Set salary of ' : 'View salary of ') + r.employee.name"
+                            (onClick)="$event.stopPropagation(); openSalary(r.employee.id, d.fyStartYear)" />
                 }
               </td>
             </tr>
@@ -223,16 +224,16 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
               <small class="hint">In {{ s.periodLabel }}, or up to 15 days after</small>
             </div>
             <div class="pf">
-              <label for="ps-wd">Working days</label>
-              <p-inputnumber inputId="ps-wd" [min]="1" [max]="31" [showButtons]="true" [ngModel]="workDays()"
+              <label for="ps-wd">Days payable</label>
+              <p-inputnumber inputId="ps-wd" [min]="1" [max]="s.dayBasis || 31" [showButtons]="true" [ngModel]="workDays()"
                              (ngModelChange)="setWorkDays($event)" />
-              <small class="hint">In {{ s.periodLabel }} ({{ s.daysInMonth }} calendar days)</small>
+              <small class="hint">Of the salary's {{ s.dayBasis }} working days a month. Fewer pay proportionally less.</small>
             </div>
             <div class="pf">
               <label for="ps-lop">LOP days (unpaid)</label>
               <p-inputnumber inputId="ps-lop" [min]="0" [max]="employed()" [step]="0.5" [minFractionDigits]="0" [maxFractionDigits]="1"
                              [showButtons]="true" [ngModel]="lop()" (ngModelChange)="setLop($event ?? 0)" />
-              <small class="hint">Paid {{ days(s.paidDays) }} of {{ workDays() }} days{{ employed() < workDays() ? ' (employed ' + days(employed()) + ')' : '' }}
+              <small class="hint">Paid {{ days(s.paidDays) }} of {{ s.dayBasis }} days{{ employed() < workDays() ? ' (employed ' + days(employed()) + ')' : '' }}
                 · half days allowed · a day = {{ perDay() }}</small>
               @if (s.unpaidLeaveDays) {
                 <small class="hint leave"><i class="pi pi-calendar-minus" aria-hidden="true"></i>
@@ -330,18 +331,19 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
     <p-dialog header="Make draft payslips" [modal]="true" [visible]="genOpen()" (visibleChange)="genOpen.set($event)"
               [style]="{ width: '440px' }" [breakpoints]="{ '760px': 'calc(100vw - 16px)' }" [draggable]="false">
       <p class="muted bulk-intro">{{ genIds()?.length ?? todo().length }} draft payslip{{ (genIds()?.length ?? todo().length) === 1 ? '' : 's' }}
-        for {{ data()?.label }}. Earnings are paid per working day: monthly ÷ working days × paid days.</p>
+        for {{ data()?.label }}. Earnings are paid per day at each salary's own day rate: monthly ÷ the salary's working days × paid days.</p>
       <div class="bulk-form">
         <div class="pf">
-          <label for="gen-days">Working days in {{ data()?.label }} <span class="req">*</span></label>
-          <p-inputnumber inputId="gen-days" [min]="1" [max]="31" [showButtons]="true" [ngModel]="genDays()"
+          <label for="gen-days">Days payable in {{ data()?.label }} <span class="opt">(optional)</span></label>
+          <p-inputnumber inputId="gen-days" [min]="1" [max]="31" [showButtons]="true" placeholder="Each salary's own" [ngModel]="genDays()"
                          (ngModelChange)="genDays.set($event)" />
-          <small class="hint">Usually {{ defaultDays }}. Change it for this month if needed; each payslip can still be changed before publishing.</small>
+          <small class="hint">Leave empty for a full month: each salary's own working days. A number here pays fewer days to everyone
+            (never more than a salary's own); each payslip can still be changed before publishing.</small>
         </div>
       </div>
       <ng-template #footer>
         <p-button label="Cancel" [text]="true" (onClick)="genOpen.set(false)" />
-        <p-button label="Make drafts" icon="pi pi-cog" [loading]="busy()" [disabled]="!genDays()" (onClick)="generate()" />
+        <p-button label="Make drafts" icon="pi pi-cog" [loading]="busy()" (onClick)="generate()" />
       </ng-template>
     </p-dialog>
 
@@ -449,6 +451,7 @@ type Show = 'ALL' | 'TODO' | 'DRAFT' | 'AWAITING' | 'CREDITED';
 export class Payslips implements OnInit {
   private readonly payroll = inject(PayrollService);
   private readonly toast = inject(MessageService);
+  private readonly router = inject(Router);
   private readonly confirm = inject(ConfirmationService);
 
   protected readonly data = signal<PayslipMonth | null>(null);
@@ -493,7 +496,7 @@ export class Payslips implements OnInit {
   protected readonly view = computed<Payslip | null>(() => {
     const s = this.slip();
     const p = this.preview();
-    return s && p ? { ...s, workingDays: p.workingDays, employedDays: p.employedDays, lopDays: p.lopDays, paidDays: p.paidDays,
+    return s && p ? { ...s, workingDays: p.workingDays, dayBasis: p.dayBasis, employedDays: p.employedDays, lopDays: p.lopDays, paidDays: p.paidDays,
       lines: p.lines, money: p.money, tax: p.tax } : s;
   });
   /** Amounts payroll typed, by component code (the others are as the payslip or the preview has them). */
@@ -537,13 +540,15 @@ export class Payslips implements OnInit {
     const s = this.view();
     if (!s) return '';
     const gross = s.lines.filter((l) => l.kind === 'EARNING').reduce((t, l) => t + l.fullAmount, 0);
-    return rupees(Math.round(gross / this.workDays()));
+    // the salary's own day rate: monthly / its working days a month (PORTAL-20)
+    return rupees(Math.round((gross / (s.dayBasis || this.workDays())) * 100) / 100);
   });
   protected readonly defaultDays = DEFAULT_WORKING_DAYS;
   protected readonly genOpen = signal(false);
   /** Who to make payslips for; null = everyone not made yet. */
   protected readonly genIds = signal<number[] | null>(null);
-  protected readonly genDays = signal<number | null>(DEFAULT_WORKING_DAYS);
+  /** Days payable for every draft made now; empty = each salary's own working days. */
+  protected readonly genDays = signal<number | null>(null);
   protected readonly payDate = signal<Date | null>(null);
   protected readonly formError = signal('');
   protected readonly downloading = signal(false);
@@ -619,18 +624,22 @@ export class Payslips implements OnInit {
     this.picked.set([]);
   }
 
+  /** PORTAL-19: the person's salary page for this month's financial year (the row's own click opens a payslip). */
+  protected openSalary(employeeId: number, fy: number): void {
+    this.router.navigate(['/portal/payroll', employeeId], { queryParams: { fy } });
+  }
+
   protected openGenerate(employeeIds?: number[]): void {
     // with a filter on, only those people: without a list the server makes payslips for everyone
     const filtered = this.brand() !== null || this.employeeId() !== null;
     this.genIds.set(employeeIds ?? (filtered ? this.todo().map((r) => r.employee.id) : null));
-    this.genDays.set(DEFAULT_WORKING_DAYS);
+    this.genDays.set(null);
     this.genOpen.set(true);
   }
 
   protected generate(): void {
     const d = this.monthDate();
-    const days = this.genDays();
-    if (!days) return;
+    const days = this.genDays() || undefined;
     this.busy.set(true);
     this.payroll.generate(d.getFullYear(), d.getMonth() + 1, this.genIds() ?? undefined, days).subscribe({
       next: (r) => {

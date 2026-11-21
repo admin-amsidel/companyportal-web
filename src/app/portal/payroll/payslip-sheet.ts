@@ -48,8 +48,8 @@ import { currencyLocale, days, formatMoney, moneyInWords, paymentLabel, PayKind,
         <div><span>Bank account</span><b>{{ p.employee.bankAccount ?? '-' }}</b>
           @if (p.employee.ifsc) { <small>IFSC {{ p.employee.ifsc }}</small> }</div>
         <div><span>Pay date</span><b>{{ p.payDate | date: 'd MMM y' }}</b></div>
-        <div><span>Working days</span><b>{{ p.workingDays }}</b></div>
-        <div><span>Paid days</span><b>{{ days(p.paidDays) }} of {{ p.workingDays }}</b></div>
+        <div><span>Days payable</span><b>{{ p.workingDays }}</b></div>
+        <div><span>Paid days</span><b>{{ days(p.paidDays) }} of {{ p.dayBasis || p.workingDays }}</b></div>
         <div><span>Loss of pay days</span><b>{{ days(p.lopDays) }}</b></div>
         <div><span>Credited on</span><b>{{ p.paidOn ? (p.paidOn | date: 'd MMM y') : 'Not yet' }}</b></div>
         <div><span>Paid by</span><b>{{ p.paidOn ? mode(p.paymentMode) : '-' }}</b></div>
